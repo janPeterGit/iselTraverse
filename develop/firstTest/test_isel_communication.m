@@ -12,7 +12,7 @@ clear all
 close all
 
 % pal pc input
-% #axis X; 
+% #axis X;
 % #steps 800; % nicht im terminal output
 % #elev 2.5 % nicht im terminal output
 % #ref_speed 5000
@@ -28,7 +28,7 @@ close all
 % @0d5000          ref speed setzen
 % @0i              #input Befehl
 % 71             reference x
-% 03200,5000      moverel 
+% 03200,5000      moverel
 % 9                stop. befehl
 % @0S              #start Befehle
 
@@ -37,6 +37,15 @@ COM_port = 'COM3';
 baudrate = 19200;
 
 t_pause = 0.5; % seconds @Mario wozu ist die Pause? Funktioniert auch ohne
+
+elev = 2.5;
+steps = 800;
+speed = 6000;
+
+moverelX = 100;
+moverelY = 100;
+
+moverel = 0;
 
 % connect serial port
 device = serialport(COM_port,baudrate);
@@ -47,23 +56,27 @@ pause(t_pause);
 
 % send commands
 disp('send commands')
-writeline(device,"@01");                  % 1 Achsen aktivieren
+writeline(device,"@02");                  % 1 Achsen aktivieren
 pause(t_pause);
 writeline(device,"@0d5000");              % Ref speed setzen
 pause(t_pause);
 writeline(device,"@0i");                  % #input Befehl
 pause(t_pause);
-writeline(device,"71");                   % 1 Achsen referenzieren
+writeline(device,"72");                   % 1 Achsen referenzieren
 pause(t_pause);
-% writeline(device,'03200,5000');        % move relative 100m (steps 800, elev 2.5mm)
-% pause(t_pause);
+if moverel == 1
+    writeline(device,['0',num2str(steps/elev*moverelX),',',num2str(speed),',0,',num2str(speed)]);        % move relative x
+    pause(t_pause);
+    writeline(device,['0','0,',num2str(speed),',',num2str(steps/elev*moverelY),',',num2str(speed)]);        % move relative y
+    pause(t_pause);
+end
 writeline(device,"9");                    % stop. Befehl
 pause(t_pause);
 writeline(device,"@0S");                  % #start Befehl
 disp('commands sent')
 disp('5s pause')
 pause(5);
- 
+
 % close serial port
 delete(device);
 clear variables
