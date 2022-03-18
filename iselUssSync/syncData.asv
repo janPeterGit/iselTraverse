@@ -1,0 +1,40 @@
+clc
+clear all
+close all
+
+% read ISEL log Datei
+iselTable = readtable("logISEL.xlsx");
+% read USS log Datei
+ussTable = readtable("Test.xlsx");
+
+% Anzahl Messpunkte
+anzahlMesspunkte = length(iselTable.position);
+
+for i = 1:anzahlMesspunkte
+    startTime = iselTable.timeStartMeasurement(i);
+    endTime = iselTable.timeEndMeasurement(i);
+
+    startID = knnsearch(datenum(ussTable.time),datenum(startTime));
+    endID = knnsearch(datenum(ussTable.time),datenum(endTime));
+    
+    meanValue.position(i) = iselTable.position(i);
+    meanValue.value(i) = mean(ussTable.value(startID:endID));
+end
+
+%% figure 
+
+font = 'Arial';
+fontSize = 10;
+f_vel = figure('Name','BR-Force','DefaultTextFontName', font, 'DefaultAxesFontName', font,...
+    'DefaultAxesFontSize',fontSize,'DefaultTextFontSize',fontSize,...
+    'Color', [1 1 1],...
+    'Units','centimeters','InnerPosition',[5 5 15 12]);
+f_vel.WindowState = 'normal'; %fullscreen, minimize, normal, maximize
+
+plot(meanValue.position,meanValue.value,'k-o')
+
+ylim([0 20])
+grid on
+
+xlabel('\sl\x\rm [°]')
+ylabel('\slC_D\rm [-]')

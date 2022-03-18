@@ -56,7 +56,7 @@ pause(t_pause);
 
 % send commands
 disp('send commands')
-writeline(device,"@02");                  % 1 Achsen aktivieren
+writeline(device,"@02");                  % 2 Achsen aktivieren
 pause(t_pause);
 writeline(device,"@0d5000");              % Ref speed setzen
 pause(t_pause);
