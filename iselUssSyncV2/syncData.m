@@ -4,8 +4,9 @@ close all
 
 %% Dateien einlesen
 % read ISEL log Datei
-logISELfilename = uigetfile('*.xlsx');
-iselTable = readtable(logISELfilename);
+matlabFolder = pwd;
+[logISELfilename,path] = uigetfile('*.xlsx');
+iselTable = readtable([path,'/',logISELfilename]);
 
 L = char(extractBetween(logISELfilename,'L','W'));
 W = char(extractBetween(logISELfilename,'W','Q'));
@@ -15,9 +16,11 @@ Position = char(extractBetween(logISELfilename,[h,'_'],'.x'));
 
 % read USS log Datei
 % ussTablefilename = uigetfile('*.csv');
-ussTablefilename = [logISELfilename(1:end-5),'.csv'];
+ussTablefilename = [path,'/',logISELfilename(1:end-5),'.csv'];
 ussTable = readtable(ussTablefilename);
 ussMatrix = table2array(ussTable(:,2:5));
+
+cd(matlabFolder)
 
 %% Dateien synchronisieren und Mittelwerte berechnen
 % Anzahl Messpunkte
@@ -72,12 +75,12 @@ xlabel('\slx\rm [mm]')
 ylabel('\slh\rm [cm]')
 
 %% Daten in Tabelle schreiben und Bild exportieren
-outputDirectory = 'Output';
+outputDirectory = 'OutputWSL';
 if not(isfolder(outputDirectory))
     mkdir(outputDirectory) % Ordner für Export im Ordner mit den Messdaten erstellen
 end
 
-figureName = ['Output/L',L,'W',W,'Q',Q,'H',h,'_',Position,'_WSL.png'];
+figureName = [outputDirectory,'/L',L,'W',W,'Q',Q,'H',h,'_',Position,'_WSL.png'];
 delete(figureName)
 exportgraphics(f,figureName,'Resolution',400)
 % close all
@@ -87,7 +90,7 @@ dataTable.xPosition = xPosition;
 dataTable.yPosition = yPosition;
 dataTable.h = hMatrix;
 
-filename = ['Output/L',L,'W',W,'Q',Q,'H',h,'_',Position,'_WSL.xlsx'];
+filename = [outputDirectory,'/L',L,'W',W,'Q',Q,'H',h,'_',Position,'_WSL.xlsx'];
 % filename = 'testOutput.xlsx';
 delete(filename);
 writetable(dataTable,filename,'Sheet','Messdaten','WriteVariableNames',true);

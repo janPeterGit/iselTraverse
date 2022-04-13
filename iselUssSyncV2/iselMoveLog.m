@@ -112,31 +112,31 @@ elev = 2.5;
 steps = 800;
 speed = 5000;
 
-% % connect serial port
-% device = serialport(COM_port,baudrate);
-% configureTerminator(device,"CR/LF") % unbedingt notwendig, für ECHO Antwort
-% pause(t_pause);
-% device.Timeout = 10; % default 10
-% pause(t_pause);
-% 
-% %% Achse referenzieren und an Startposition fahren
-% % ISEL commands
-% disp('write commands')
-% writeline(device,"@01");                  % 1 Achsen aktivieren
-% pause(t_pause);
-% writeline(device,"@0d5000");              % Ref speed setzen
-% pause(t_pause);
-% writeline(device,"@0i");                  % #input Befehl
-% pause(t_pause);
-% writeline(device,"71");                   % Achse 1 referenzieren
-% pause(t_pause);
-% % move relative x Achse
-% writeline(device,['0',num2str(steps/elev*startPos),',',num2str(speed)]);
-% pause(t_pause);
-% writeline(device,"9");                    % stop. Befehl
-% pause(t_pause);
-% writeline(device,"@0S");                  % #start Befehl
-% disp('commands sent')
+% connect serial port
+device = serialport(COM_port,baudrate);
+configureTerminator(device,"CR/LF") % unbedingt notwendig, für ECHO Antwort
+pause(t_pause);
+device.Timeout = 10; % default 10
+pause(t_pause);
+
+%% Achse referenzieren und an Startposition fahren
+% ISEL commands
+disp('write commands')
+writeline(device,"@01");                  % 1 Achsen aktivieren
+pause(t_pause);
+writeline(device,"@0d5000");              % Ref speed setzen
+pause(t_pause);
+writeline(device,"@0i");                  % #input Befehl
+pause(t_pause);
+writeline(device,"71");                   % Achse 1 referenzieren
+pause(t_pause);
+% move relative x Achse
+writeline(device,['0',num2str(steps/elev*startPos),',',num2str(speed)]);
+pause(t_pause);
+writeline(device,"9");                    % stop. Befehl
+pause(t_pause);
+writeline(device,"@0S");                  % #start Befehl
+disp('commands sent')
 
 % WARTE AUF EINGABE
 WarnText = 'Bestätigen, wenn die Achse referenziert und die Startposition erreicht wurde.';
@@ -162,52 +162,52 @@ for i = 1:anzahlMesspunkte % +1, um nach der letzten Positionsänderung noch zu 
     % schreibe festgelegte Dauer der Messung
     iselColumn.deltaTmeas(i) = deltaTmeas;
     
-%     % verfahren bis alle Messpunkte erreicht wurden
-%     if i < anzahlMesspunkte
-%         % ändere Position USS, ISEL für nächste Messung
-%         % ISEL commands
-%         disp('write commands')
-%         writeline(device,"@01");                  % 1 Achsen aktivieren
-%         pause(t_pause);
-%         writeline(device,"@0d5000");              % Ref speed setzen
-%         pause(t_pause);
-%         writeline(device,"@0i");                  % #input Befehl
-%         pause(t_pause);
-%         % move relative x Achse
-%         writeline(device,['0',num2str(steps/elev*deltaXpos),',',num2str(speed)]);
-%         pause(t_pause);
-% 
-%         writeline(device,"9");                    % stop. Befehl
-%         pause(t_pause);
-%         writeline(device,"@0S");                  % #start Befehl
-%         disp('commands sent')
-%         disp('Schlitten fährt...')
-%         pause(2) % 2s für Fahrtzeit
-%     end
+    % verfahren bis alle Messpunkte erreicht wurden
+    if i < anzahlMesspunkte
+        % ändere Position USS, ISEL für nächste Messung
+        % ISEL commands
+        disp('write commands')
+        writeline(device,"@01");                  % 1 Achsen aktivieren
+        pause(t_pause);
+        writeline(device,"@0d5000");              % Ref speed setzen
+        pause(t_pause);
+        writeline(device,"@0i");                  % #input Befehl
+        pause(t_pause);
+        % move relative x Achse
+        writeline(device,['0',num2str(steps/elev*deltaXpos),',',num2str(speed)]);
+        pause(t_pause);
+
+        writeline(device,"9");                    % stop. Befehl
+        pause(t_pause);
+        writeline(device,"@0S");                  % #start Befehl
+        disp('commands sent')
+        disp('Schlitten fährt...')
+        pause(2) % 2s für Fahrtzeit
+    end
     duration = toc;
     disp(['Gesamtdauer = ',num2str(round(duration,1)),...
         ' s, Restzeit = ',num2str(DurationSum - round(duration,1)),' s'])
 end
 
-% % ReferenceX(device)
-% % Achse referenzieren und an Startposition fahren
-% % ISEL commands
-% disp('write commands')
-% writeline(device,"@01");                  % 1 Achsen aktivieren
-% pause(t_pause);
-% writeline(device,"@0d5000");              % Ref speed setzen
-% pause(t_pause);
-% writeline(device,"@0i");                  % #input Befehl
-% pause(t_pause);
-% writeline(device,"71");                   % Achse 1 referenzieren
-% pause(t_pause);
-% writeline(device,"9");                    % stop. Befehl
-% pause(t_pause);
-% writeline(device,"@0S");                  % #start Befehl
-% disp('commands sent')
-% 
-% % close serial port
-% delete(device);
+% ReferenceX(device)
+% Achse referenzieren und an Startposition fahren
+% ISEL commands
+disp('write commands')
+writeline(device,"@01");                  % 1 Achsen aktivieren
+pause(t_pause);
+writeline(device,"@0d5000");              % Ref speed setzen
+pause(t_pause);
+writeline(device,"@0i");                  % #input Befehl
+pause(t_pause);
+writeline(device,"71");                   % Achse 1 referenzieren
+pause(t_pause);
+writeline(device,"9");                    % stop. Befehl
+pause(t_pause);
+writeline(device,"@0S");                  % #start Befehl
+disp('commands sent')
+
+% close serial port
+delete(device);
 
 %% write file
 iselTable = table;
