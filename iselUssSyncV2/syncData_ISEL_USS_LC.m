@@ -5,7 +5,7 @@ close all
 %% Dateien einlesen
 % read ISEL log Datei
 matlabFolder = pwd;
-cd('Z:\6 User\Balmes\Messungen_Ze')
+cd('Measurements\')
 [logISELfilename,path] = uigetfile('*.xlsx');
 
 cd(path) % gehe zum Pfad, wo die ausgewählte Datei liegt
@@ -187,7 +187,7 @@ disp(['Case# ',num2str(caseNum),': h_up = ',num2str(dataTable.hUp*1000,'%.1f'), 
 disp(['F_measured = ',num2str(dataTable.FmeasuredUncor,'%.2f'),' N'])
 disp(['F_calculated (Oertel, 2012) = ',num2str(dataTable.Ftotal,'%.2f'),' N'])
 disp(['Deviation = ', ...
-    num2str(dataTable.Ftotal/dataTable.FmeasuredUncor*100,'%.1f'),'%'])
+    num2str((dataTable.Ftotal/dataTable.FmeasuredUncor-1)*100,'%.1f'),'%'])
 disp('where:')
 disp(['F_D = ',num2str(dataTable.Fd,'%.2f'),' N'])
 disp(['F_D,BR = ',num2str(dataTable.FdBR,'%.2f'),' N'])
