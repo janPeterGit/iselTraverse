@@ -5,21 +5,12 @@ close all
 %% Dateien einlesen
 % read ISEL log Datei
 matlabFolder = pwd;
+cd('Z:\6 User\Balmes\Messungen_Ze')
 [logISELfilename,path] = uigetfile('*.xlsx');
 
-cd(path)
-
+cd(path) % gehe zum Pfad, wo die ausgewählte Datei liegt
+% read die ausgewählte Datei ein
 iselTable = readtable(logISELfilename);
-
-L = char(extractBetween(logISELfilename,'L','W'));
-W = char(extractBetween(logISELfilename,'W','Q'));
-Q = char(extractBetween(logISELfilename,'Q','H'));
-h = char(extractBetween(logISELfilename,'H','_'));
-Position = char(extractBetween(logISELfilename,[h,'_'],'.x'));
-
-B = 0.79; %m
-u = round(str2double(Q)/str2double(h)/B*1000/1000,3);
-uChar = sprintf('%.2f',u);
 
 % read USS log Datei
 % ussTablefilename = uigetfile('*.csv');
@@ -28,10 +19,38 @@ ussTable = readtable(ussTablefilename);
 ussMatrix = table2array(ussTable(:,2:5))*1000; % *1000 m --> mm
 
 % read Load Cell Datei
-[filenameLC,path] = uigetfile('*.txt');
+% [filenameLC,path] = uigetfile('*.txt');
+filenameLC = [logISELfilename(1:end-5),'.txt'];
 forceArray = importFileLC(filenameLC);
 
 cd(matlabFolder)
+
+%%
+% Konstanten
+B = 0.79; %m
+density = 1000; % kg/m³
+gravity = 9.81; % m/s²
+kinematicViscosity = 1e-6; % todo
+
+% D_Pipe = 8/1000; % mm
+CD_Pipe = 1;
+CD_Lmid = 1;
+CD_Llong = 1;
+CD_one = 1;
+
+D = 50; % todo
+
+% Variablen aus Dateinamen extrahieren
+L = char(extractBetween(logISELfilename,'L','W'));
+W = char(extractBetween(logISELfilename,'W','Q'));
+Q = char(extractBetween(logISELfilename,'Q','H'));
+h = char(extractBetween(logISELfilename,'H','G'));
+G = char(extractBetween(logISELfilename,'G','_'));
+Position = char(extractBetween(logISELfilename,[G,'_'],'.x'));
+
+% Fließgeschwindigkeit berechnen
+u = round(str2double(Q)/str2double(h)/B*1000/1000,3);
+uChar = sprintf('%.2f',u);
 
 %% Dateien synchronisieren und Mittelwerte berechnen
 % fest verbaute Sensoren bei -2 und +2 m relativ zur Zylindermitte
@@ -40,14 +59,15 @@ hDownXposition = 2000;
 % Mittelwerte USS Messung
 hUp = mean(ussMatrix(:,3));
 hDown = mean(ussMatrix(:,4));
-hGr = ((hUp/1000 .* u).^2 ./ 9.81).^(1/3)*1000;
+hGr = ((hUp/1000 .* u).^2 ./ density).^(1/3)*1000;
 
 % Anzahl Messpunkte
 anzahlMesspunkteX = length(iselTable.xPosition);
 
-hMatrix = NaN(anzahlMesspunkteX,iselTable.countSensors(1));
-xPosition = hMatrix;
-yPosition = hMatrix;
+hMatrixMean = NaN(anzahlMesspunkteX,iselTable.countSensors(1));
+hMatrixStdDev = hMatrixMean;
+xPosition = hMatrixMean;
+yPosition = hMatrixMean;
 
 for i = 1:anzahlMesspunkteX
     startTime = iselTable.timeStartMeasurement(i);
@@ -59,44 +79,40 @@ for i = 1:anzahlMesspunkteX
     for j = 1:iselTable.countSensors(1)
         xPosition(i,:) = iselTable.xPosition(i);
         yPosition(:,j) = iselTable.y0(1) - (j-1) * iselTable.deltaYSensors(1);
-        hLoop = mean(ussMatrix(startID:endID,j));
-        if hLoop > hUp + 5 || hLoop < 0
-            hMatrix(i,j) = NaN;
+        hLoopMean = mean(ussMatrix(startID:endID,j));
+        hLoopStdDev = std(ussMatrix(startID:endID,j));
+        if hLoopMean > hUp + 5 || hLoopMean < 0
+            hMatrixMean(i,j) = NaN;
+            hLoopStdDev(i,j) = NaN;
         else
-            hMatrix(i,j) = hLoop;
+            hMatrixMean(i,j) = hLoopMean;
+            hMatrixStdDev(i,j) = hLoopStdDev;
         end
     end
 end
 
-hUpMax = max(hMatrix(xPosition < 0));
+SensorID = 2; % Sensor entlang +5cm Zylindermitte
+
+hSensor2 = hMatrixMean(:,SensorID);
+hUpMax = max(hSensor2(xPosition(:,SensorID) < 0));
+hCyl = hSensor2(xPosition(:,SensorID) == 0) - D - str2double(G);
 
 %% Kraftberechnung
-
-% flume
-B = 0.79; %m
-density = 1000; % kg/m³
-gravity = 9.81; % m/s²
-kinematicViscosity = 1e-6; % todo
-
-D_Pipe = 8/1000; % mm
-CD_Pipe = 1;
-CD_Lmid = 1;
-CD_Llong = 1;
-CD_one = 1;
-
 dataTable = table; % Tabelle erstellen, die mit Werten beschrieben wird
 
-dataTable.D = str2double(extractBetween(filenameLC,'D','L'))/1000; % diameter cylinder
-dataTable.L = str2double(extractBetween(filenameLC,'L','W'))/1000; % length cylinder
-dataTable.gamma = str2double(extractBetween(filenameLC,'W','Q')); % angle
-dataTable.Q = str2double(extractBetween(filenameLC,'Q','H'))/1000; % discharge
-% dataTable.h = str2double(extractBetween(filenameLC,'H','Z'))/1000; % water depth
+% dataTable.D = str2double(extractBetween(filenameLC,'D','L'))/1000; % diameter cylinder
+dataTable.D = D/1000; % todo
+dataTable.L = str2double(L)/1000; % length cylinder
+dataTable.gamma = str2double(W); % angle
+dataTable.Q = str2double(Q)/1000; % discharge
 
 dataTable.hUp = hUp/1000;
 dataTable.hUpMax = hUpMax/1000;
+dataTable.hCyl = hCyl/1000;
 dataTable.hDown = hDown/1000;
 
-dataTable.G = str2double(extractBetween(filenameLC,'Z','.txt'))/1000; % gap
+% dataTable.G = str2double(extractBetween(filenameLC,'G','.txt'))/1000; % gap
+dataTable.G = str2double(G)/1000;
 dataTable.z = dataTable.G + dataTable.D./2; % center Cylinder to bed lvl
 dataTable.u = dataTable.Q/(B*dataTable.hUp); % velocity
 
@@ -122,24 +138,24 @@ for j = 2:5
 end
 
 % weitere Daten berechnen
-dataTable.FmeasuredUncor = dataTable.mx *9.81 / 1000;
+dataTable.FmeasuredUncor = dataTable.mx * gravity / 1000;
 
 % dataTable.FmountCalcBR = CD_Pipe .* (1-dataTable.BR).^-2 .* dataTable.PipeRef .* dataTable.v.^2 .* 1000 .* 0.5;
 % dataTable.Fmeasured = dataTable.FmeasuredUncor - dataTable.FmountCalcBR;
 
-dataTable.CDgeneral = 2 * dataTable.FmeasuredUncor ./(1000 * dataTable.u.^2 .* dataTable.Aref);
-dataTable.CDBR = 2 * dataTable.FmeasuredUncor ./(1000 * dataTable.u.^2 .* dataTable.Aref .* (1-dataTable.BR).^-2);
+dataTable.CDgeneral = 2 * dataTable.FmeasuredUncor ./(density * dataTable.u.^2 .* dataTable.Aref);
+dataTable.CDBR = 2 * dataTable.FmeasuredUncor ./(density * dataTable.u.^2 .* dataTable.Aref .* (1-dataTable.BR).^-2);
 
 dataTable.hgr = ((dataTable.hUp .* dataTable.u).^2 ./ 9.81).^(1/3);
 dataTable.Agr = dataTable.hgr .* B;
-dataTable.FrUp = dataTable.u ./ (9.81 * dataTable.hUp).^(0.5);
+dataTable.FrUp = dataTable.u ./ (gravity * dataTable.hUp).^(0.5);
 dataTable.Dhy = 4 * dataTable.hUp * B ./( 2* dataTable.hUp + B );
 dataTable.Re = dataTable.u .* dataTable.Dhy / kinematicViscosity;
 dataTable.ReCyl = dataTable.u .* dataTable.L / kinematicViscosity;
 dataTable.ReCylGroup = round(dataTable.ReCyl,-4);
 
 % F_D = hydrodynamische Druckkraft
-dataTable.Fd = CD_one * 1000 .* dataTable.Aref .* dataTable.u.^2 /2;
+dataTable.Fd = CD_one * density .* dataTable.Aref .* dataTable.u.^2 /2;
 % F_D mit Berücksichtigung Verbaugrad (blockage ratio BR)
 dataTable.FdBR = dataTable.Fd .* (1-dataTable.BR).^(-2);
 
@@ -198,11 +214,13 @@ f.WindowState = 'maximize'; %fullscreen, minimize, normal, maximize
 hold on
 for k = 1:iselTable.countSensors(1)
     x = xPosition(:,k);
-    y = hMatrix(:,k);
+    y = hMatrixMean(:,k);
+    errSdt = hMatrixStdDev(:,k);
     xs = x(~isnan(y));
     ys = y(~isnan(y));
-    yi = interp1(xs, ys, x, 'Linear');
-    wslPlot = plot(xs,ys,'-o');
+    errSdts = errSdt(~isnan(y));
+%     yi = interp1(xs, ys, x, 'Linear');
+    wslPlot = errorbar(xs,ys,errSdts,'-o');
     wslPlot.DisplayName = ['\sly\rm = ',num2str(yPosition(1,k)),' mm'];
 end
 
@@ -260,7 +278,7 @@ if not(isfolder(outputDirectory))
     mkdir(outputDirectory) % Ordner für Export im Ordner mit den Messdaten erstellen
 end
 
-figureName = [outputDirectory,'/L',L,'W',W,'Q',Q,'U',uChar,'H',h,'_',Position,'_WSL.png'];
+figureName = [outputDirectory,'/D',num2str(D),'L',L,'W',W,'Q',Q,'U',uChar,'H',h,'G',G,'_',Position,'_WSL.png'];
 try
     delete(figureName)
 catch ME
@@ -271,15 +289,23 @@ exportgraphics(f,figureName,'Resolution',400)
 exportTable = table;
 exportTable.xPosition = xPosition;
 exportTable.yPosition = yPosition;
-exportTable.h = hMatrix;
+exportTable.h = hMatrixMean;
 
-filename = [outputDirectory,'/L',L,'W',W,'Q',Q,'U',uChar,'H',h,'_',Position,'_WSL.xlsx'];
+filename = [outputDirectory,'/D',num2str(D),'L',L,'W',W,'Q',Q,'U',uChar,'H',h,'G',G,'_',Position,'_WSL.xlsx'];
 % filename = 'testOutput.xlsx';
 try
     delete(filename);
 catch ME
 end
 writetable(exportTable,filename,'Sheet','Messdaten','WriteVariableNames',true);
+
+filename = [outputDirectory,'/D',num2str(D),'L',L,'W',W,'Q',Q,'U',uChar,'H',h,'G',G,'_',Position,'_DATA.xlsx'];
+% filename = 'testOutput.xlsx';
+try
+    delete(filename);
+catch ME
+end
+writetable(dataTable,filename,'Sheet','Messdaten','WriteVariableNames',true);
 
 close all
 
