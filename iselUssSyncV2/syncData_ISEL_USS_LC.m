@@ -9,10 +9,10 @@ close all
 % read ISEL log Datei
 matlabFolder = pwd;
 
-measurementDirectory = uigetdir('Measurements/');
+measurementDirectory = uigetdir('LogISEL_LogUSS_LogLC/');
 cd(measurementDirectory)
 measurements = ls('*.xlsx');
-cd(matlabFolder) 
+cd(matlabFolder)
 
 for i = 1:size(measurements,1)
     disp('#################################################')
@@ -28,9 +28,6 @@ for i = 1:size(measurements,1)
 end
 
 disp('All done')
-
-
-
 
 
 
@@ -68,6 +65,7 @@ CD_one = 1;
 D = 50; % todo
 
 % Variablen aus Dateinamen extrahieren
+TimeString = char(extractBefore(filenameISEL,'_L'));
 L = char(extractBetween(filenameISEL,'L','W'));
 W = char(extractBetween(filenameISEL,'W','Q'));
 Q = char(extractBetween(filenameISEL,'Q','H'));
@@ -99,8 +97,10 @@ for i = 1:anzahlMesspunkteX
     startTime = iselTable.timeStartMeasurement(i);
     endTime = iselTable.timeEndMeasurement(i);
 
-    startID = knnsearch(datenum(ussTable.Var1),datenum(startTime));
-    endID = knnsearch(datenum(ussTable.Var1),datenum(endTime));
+    shiftTime = minutes(119)+seconds(59);
+
+    startID = knnsearch(datenum(ussTable.Var1+shiftTime),datenum(startTime));
+    endID = knnsearch(datenum(ussTable.Var1+shiftTime),datenum(endTime));
 
     for j = 1:iselTable.countSensors(1)
         xPosition(i,:) = iselTable.xPosition(i);
@@ -201,26 +201,39 @@ if hUpCalc <= dataTable.D && hDownCalc <= dataTable.D
     % todo: gilt nur für 90 Grad wegen D
     dataTable.caseNum = caseNum;
     dataTable.Fs = density * gravity * dataTable.L (hUpCalc^2 - hDownCalc^2);
+
+    % F_total = F_D + F_S
+    dataTable.Ftotal = dataTable.FdBR + dataTable.Fs;
     % h_up > D und h_down <= D
 elseif hUpCalc > dataTable.D && hDownCalc < dataTable.D
     caseNum = 2;
     % todo: gilt nur für 90 Grad wegen L und D
     dataTable.caseNum = caseNum;
     dataTable.Fs = density * gravity * dataTable.L * (dataTable.D .* (hUpCalc - 0.5 * dataTable.D) -0.5 * hDownCalc.^2);
+
+    % F_total = F_D + F_S
+    dataTable.Ftotal = dataTable.FdBR + dataTable.Fs;
     % h_up > D und h_down > D
 elseif hUpCalc > dataTable.D && hDownCalc > dataTable.D && dataTable.hDownMin - dataTable.hgr > 0
     caseNum = 3;
     dataTable.caseNum = caseNum;
     dataTable.Fs = density * gravity * dataTable.Aref * (hUpCalc - hDownCalc);
+
+    % F_total = F_D + F_S
+    dataTable.Ftotal = dataTable.FdBR + dataTable.Fs;
 elseif hUpCalc > dataTable.D && hDownCalc > dataTable.D && dataTable.hDownMin - dataTable.hgr < 0
     caseNum = 4;
     dataTable.caseNum = caseNum;
     % specific momentum Turcotte, 2016
-    dataTable.FspecMom = density * gravity * dataTable.L /B *(((dataTable.Q/B)^2 / (gravity *dataTable.hUp) + (dataTable.hUp^2 /2)) ...
-        - ((dataTable.Q/B)^2 /(gravity *dataTable.hDown) + (dataTable.hDown^2 /2)));
+%     dataTable.FspecMom = density * gravity * dataTable.L /B *(((dataTable.Q/B)^2 / (gravity *dataTable.hUp) + (dataTable.hUp^2 /2)) ...
+%         - ((dataTable.Q/B)^2 /(gravity *dataTable.hDown) + (dataTable.hDown^2 /2)));
+
+    dataTable.Fs = density * gravity * dataTable.Aref * (hUpCalc - hDownCalc);
+
+    % F_total = F_D + F_S
+    dataTable.Ftotal = dataTable.FdBR + dataTable.Fs;
 end
-% F_total = F_D + F_S
-dataTable.Ftotal = dataTable.FdBR + dataTable.Fs;
+
 
 
 
@@ -328,7 +341,7 @@ if not(isfolder(outputDirectory))
     mkdir(outputDirectory) % Ordner für Export im Ordner mit den Messdaten erstellen
 end
 
-figureName = [outputDirectory,'/D',num2str(D),'L',L,'W',W,'Q',Q,'U',uChar,'H',h,'G',G,'_',Position,'_WSL.png'];
+figureName = [outputDirectory,'/',TimeString,'_D',num2str(D),'L',L,'W',W,'Q',Q,'U',uChar,'H',h,'G',G,'_',Position,'_WSL.png'];
 try
     delete(figureName)
 catch ME
@@ -341,7 +354,7 @@ exportTable.xPosition = xPosition;
 exportTable.yPosition = yPosition;
 exportTable.h = hMatrixMean;
 
-filename = [outputDirectory,'/D',num2str(D),'L',L,'W',W,'Q',Q,'U',uChar,'H',h,'G',G,'_',Position,'_WSL.xlsx'];
+filename = [outputDirectory,'/',TimeString,'_D',num2str(D),'L',L,'W',W,'Q',Q,'U',uChar,'H',h,'G',G,'_',Position,'_WSL.xlsx'];
 % filename = 'testOutput.xlsx';
 try
     delete(filename);
@@ -349,7 +362,7 @@ catch ME
 end
 writetable(exportTable,filename,'Sheet','Messdaten','WriteVariableNames',true);
 
-filename = [outputDirectory,'/D',num2str(D),'L',L,'W',W,'Q',Q,'U',uChar,'H',h,'G',G,'_',Position,'_DATA.xlsx'];
+filename = [outputDirectory,'/',TimeString,'_D',num2str(D),'L',L,'W',W,'Q',Q,'U',uChar,'H',h,'G',G,'_',Position,'_DATA.xlsx'];
 % filename = 'testOutput.xlsx';
 try
     delete(filename);

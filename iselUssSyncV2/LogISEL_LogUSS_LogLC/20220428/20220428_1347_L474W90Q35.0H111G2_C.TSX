@@ -1,0 +1,26 @@
+CATMAN TEST FILE
+PATH=C:\Users\Viktor Elverich\Desktop\MA_Ze\MATLAB\IselSyncUss\LogISEL_LogUSS_LogLC\20220428
+Version=catmanEasy Evaluierungsversion
+Jobname=Job1
+Messwertdatei mit Sicherungspfad=C:\Users\Viktor Elverich\Desktop\MA_Ze\MATLAB\IselSyncUss\LogISEL_LogUSS_LogLC\20220428\20220428_1347_L474W90Q35.0H111G2_C.txt
+Messwertdatei=20220428_1347_L474W90Q35.0H111G2_C.txt
+Dateikommentar=
+Zeitzone=Mitteleuropäische Sommerzeit (UTC+2:00)
+Bearbeiter=
+Abteilung=
+Kommentar=
+Standardmessrate=50 Hz
+Langsame Messrate=10 Hz
+Schnelle Messrate=4800 Hz
+Anzahl Messwerte Standardmessrate=3000
+Anzahl Messwerte langsame Messrate=0
+Anzahl Messwerte schnelle Messrate=0
+Sicherungsmodus=PROMPT
+Master/Slave-Modus=Nein
+Startmodus=Manuell
+Startzeit=2022/04/28 13:37:16
+Stopmodus=Zeit
+Stopzeit=2022/04/28 13:38:16
+catmanEasy/AP version=5.5.2.10
+Firmware MX440B=4.40.8.0
+DATAFILE=C:\Users\Viktor Elverich\Desktop\MA_Ze\MATLAB\IselSyncUss\LogISEL_LogUSS_LogLC\20220428\20220428_1347_L474W90Q35.0H111G2_C.txt
