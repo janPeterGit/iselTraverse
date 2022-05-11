@@ -3,17 +3,27 @@ clear all
 close all
 
 %%
-markerSet6 = ['s'
+markerSet6 = ['o'
     '^'
-    'o'
+    's'
     'v'
     'd'
     'h'];
 
-matlabColor = {'#EDB120',...
+matlabColor = {'#0072BD',...
+    '#D95319',...
+    '#EDB120',...
     '#7E2F8E',...
+    '#77AC30',...
     '#4DBEEE',...
-    '#A2142F'};
+    '#D95319',...
+    '#4DBEEE',...
+    '#77AC30',...
+    '#7E2F8E',...
+    '#EDB120'    
+    };
+
+dateIndexPlot = 0;
 
 %%
 
@@ -28,12 +38,12 @@ dataTable = table;
 
 for i = 1:size(cases,1)
     disp(['case ',num2str(i),'/',num2str(size(cases,1))])
-        
-        filename = convertStringsToChars(strtrim(convertCharsToStrings(cases(i,:))));
-        clear dataTableImport
-        dataTableImport = readtable(filename);
-        dataTableImport.measurementDay = str2double(filename(1:8));
-        dataTable(i,:) = dataTableImport;
+
+    filename = convertStringsToChars(strtrim(convertCharsToStrings(cases(i,:))));
+    clear dataTableImport
+    dataTableImport = readtable(filename);
+    dataTableImport.measurementDay = str2double(filename(1:8));
+    dataTable(i,:) = dataTableImport;
 end
 
 %%
@@ -64,49 +74,57 @@ pltRegression.Color = 'k';
 pltRegression.Marker = 'none';
 pltRegression.DisplayName = '1:1';
 
-caseNums = unique(dataTable.caseNum);
-caseString = {'$h_{up}, h_{down} \leq D+G$',...
-    '$h_{up} > D + G, h_{down} \leq D+G$',...
-    '$h_{up}, h_{down} > D+G$', ...
-    '$Fr_{Down} > 1$'};
 
-measurementDays = unique(dataTable.measurementDay);
 
-% plot calculated Force values
-% cases 1 bis 3
-for j = 1:length(caseNums)%-1
-    pltValues = plot(dataTable.FmeasuredUncor(dataTable.caseNum == caseNums(j)),...
-        dataTable.Ftotal(dataTable.caseNum == caseNums(j)));
+% plot each Length
+uniqueLength = unique(dataTable.L);
+for kk = 1:length(uniqueLength)
+    dataTableLengthSelected = dataTable(dataTable.L == uniqueLength(kk),:);
 
-    pltValues.LineStyle = 'none';
-    pltValues.MarkerSize = 8;
-    pltValues.Marker = markerSet6(j);
-    pltValues.MarkerEdgeColor = 'k';
-    pltValues.MarkerFaceColor = matlabColor{j};
-    pltValues.DisplayName = ['case ',num2str(caseNums(j)),': ',convertStringsToChars(convertCharsToStrings(caseString(caseNums(j))))];
+    caseNums = unique(dataTableLengthSelected.caseNum);
+    caseStr = unique(dataTableLengthSelected.caseStr);
+    % plot calculated Force values
+    % each case
+    for j = 1:length(caseNums)%-1
+        dataTableCaseSelected = dataTableLengthSelected(dataTableLengthSelected.caseNum == caseNums(j),:);
+        pltValues = plot(dataTableCaseSelected.FmeasuredUncor,...
+            dataTableCaseSelected.Ftotal);
+
+        pltValues.LineStyle = 'none';
+        pltValues.MarkerSize = 8;
+        pltValues.Marker = markerSet6(kk);
+        pltValues.MarkerEdgeColor = 'k';
+        pltValues.MarkerFaceColor = matlabColor{j};
+        pltValues.DisplayName = [num2str(size(dataTableCaseSelected,1)),'x case ',caseStr{j},', $L = ',num2str(uniqueLength(kk)),'$ m'];
+    end
 end
 
 % case 4
-% pltSpecificMomentum = plot(dataTable.FmeasuredUncor, dataTable.FspecMom);
-% pltSpecificMomentum.LineStyle = 'none';
-% pltSpecificMomentum.MarkerSize = 8;
-% pltSpecificMomentum.Marker = markerSet6(j+1);
-% pltSpecificMomentum.MarkerEdgeColor = 'k';
+pltSpecificMomentum = plot(dataTable.FmeasuredUncor, dataTable.FspecMom);
+pltSpecificMomentum.LineStyle = 'none';
+pltSpecificMomentum.MarkerSize = 8;
+pltSpecificMomentum.Marker = 'x';%markerSet6(j+1);
+pltSpecificMomentum.MarkerEdgeColor = 'k';
 % pltSpecificMomentum.MarkerFaceColor = matlabColor{j+1};
-% pltSpecificMomentum.DisplayName = ['case ',num2str(caseNums(j+1)),': $\rho g B/L (M_{up} - M_{down})$'];
+pltSpecificMomentum.DisplayName = ['Specific Momentum $\rho g B/L (M_{up} - M_{down})$'];
 
-% DatumsIndex plotten
-for jj = 1:length(measurementDays)
-    dateText01 = text(dataTable.FmeasuredUncor(dataTable.measurementDay == measurementDays(jj))+0.08, ...
-        dataTable.Ftotal(dataTable.measurementDay == measurementDays(jj)),num2str(jj),'FontSize',fontSize/2);
-%     dateText02 = text(dataTable.FmeasuredUncor(dataTable.measurementDay == measurementDays(jj))+0.08, ...
-%         dataTable.FspecMom(dataTable.measurementDay == measurementDays(jj)),num2str(jj),'FontSize',fontSize/2);
+addTrendline(1,dataTable.FmeasuredUncor,dataTable.FspecMom)
+
+measurementDays = unique(dataTable.measurementDay);
+if dateIndexPlot == 1
+    % DatumsIndex plotten
+    for jj = 1:length(measurementDays)
+        dateText01 = text(dataTable.FmeasuredUncor(dataTable.measurementDay == measurementDays(jj))+0.08, ...
+            dataTable.Ftotal(dataTable.measurementDay == measurementDays(jj)),num2str(jj),'FontSize',fontSize/2);
+        %     dateText02 = text(dataTable.FmeasuredUncor(dataTable.measurementDay == measurementDays(jj))+0.08, ...
+        %         dataTable.FspecMom(dataTable.measurementDay == measurementDays(jj)),num2str(jj),'FontSize',fontSize/2);
+    end
 end
 
 % xlim([-1000 1400])
 % ylim([0 150])
 lgd = legend('Interpreter','latex');
-lgd.Location = 'northwest';
+lgd.Location = 'eastoutside';
 
 grid on
 
@@ -180,7 +198,7 @@ for k = 1:length(caseNums)
     pltDepth.Marker = markerSet6(k);
     pltDepth.MarkerEdgeColor = 'k';
     pltDepth.MarkerFaceColor = matlabColor{k};
-    pltDepth.DisplayName = ['case ',num2str(caseNums(k))];
+    pltDepth.DisplayName = ['case ',caseStr{k}];
 end
 
 maxLimit = max(max(xlim,ylim));
@@ -202,7 +220,7 @@ scaleFactor = 1;
 daspect([1 1/scaleFactor 1])
 
 lgd = legend('Interpreter','latex');
-lgd.Location = 'northwest';
+lgd.Location = 'NorthWestOutside';
 
 xlabel('$h_{down}^* = \frac{h_{down}}{D_{cyl} + h_{gr}}$ [-]','Interpreter','latex')
 ylabel('$h_{up}^* = \frac{h_{up}}{D_{cyl} + h_{gr}}$ [-]','Interpreter','latex')
@@ -241,14 +259,7 @@ hold on
 % calculate Delta H
 deltaH = (dataTable.hUp - dataTable.hDown) * 1000; % m -> mm
 
-polyGrad = 3;
-    poly = polyfit(deltaH,dataTable.FmeasuredUncor,polyGrad);
-    xPoly = linspace(min(deltaH),max(deltaH));
-    yPoly = polyval(poly,xPoly);
-
-trendline = plot(xPoly,yPoly);
-trendline.Color = 'k';
-trendline.DisplayName = ['fitted polynom ',num2str(polyGrad),'. grade'];
+% trendline??? todo
 
 for k = 1:length(caseNums)
     pltDepth = plot(deltaH(dataTable.caseNum == caseNums(k)),...
@@ -258,7 +269,7 @@ for k = 1:length(caseNums)
     pltDepth.Marker = markerSet6(k);
     pltDepth.MarkerEdgeColor = 'k';
     pltDepth.MarkerFaceColor = matlabColor{k};
-    pltDepth.DisplayName = ['case ',num2str(caseNums(k))];
+    pltDepth.DisplayName = ['case ',caseStr{k}];
 end
 
 for jj = 1:length(measurementDays)
@@ -303,3 +314,16 @@ pause(2)
 % close all
 
 disp('All done')
+
+%% functions
+
+function addTrendline(polyGrad,xValues,yValues)
+poly = polyfit(xValues,yValues,polyGrad);
+xPoly = linspace(min(xValues),max(xValues));
+yPoly = polyval(poly,xPoly);
+
+trendline = plot(xPoly,yPoly);
+trendline.LineStyle = '--';
+trendline.Color = 'k';
+trendline.DisplayName = ['fitted polynom ',num2str(polyGrad),'. grade'];
+end

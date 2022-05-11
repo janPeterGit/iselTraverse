@@ -14,6 +14,8 @@ cd(measurementDirectory)
 measurements = ls('*.xlsx');
 cd(matlabFolder)
 
+
+
 for i = 1:size(measurements,1)
     disp('#################################################')
     disp(['Measurement ',num2str(i),'/',num2str(size(measurements,1))])
@@ -21,7 +23,7 @@ for i = 1:size(measurements,1)
     filenameISEL = convertStringsToChars(strtrim(convertCharsToStrings(measurements(i,:))));
     filenameUSS = [filenameISEL(1:end-5),'.csv'];
     filenameLC = [filenameISEL(1:end-5),'.txt'];
-    
+
     % function syncData
     syncData(measurementDirectory,filenameISEL,filenameUSS,filenameLC,...
         matlabFolder)
@@ -35,6 +37,9 @@ disp('All done')
 %%
 function syncData(folder,filenameISEL,filenameUSS,filenameLC,matlabFolder)
 %
+% plotting = 1;
+plotting = 1;
+
 cd(folder)
 % read ISEL Datei
 iselTable = readtable(filenameISEL);
@@ -47,6 +52,15 @@ ussMatrix = table2array(ussTable(:,2:5))*1000; % *1000 m --> mm
 % read Load Cell Datei
 % [filenameLC,path] = uigetfile('*.txt');
 forceArray = importFileLC(filenameLC);
+
+% korrektur Durchbiegung bis einschl. 6.5.2022
+correctionFolder = 'correctDeflection';
+if exist(correctionFolder, 'dir')
+    correctionNeeded = 1;
+    correctionTable =  readtable([correctionFolder,'/correctDeflection.xlsx']);
+else
+    correctionNeeded = 0;
+end
 
 cd(matlabFolder)
 
@@ -62,10 +76,11 @@ kinematicViscosity = 1e-6; % todo
 % CD_Llong = 1;
 CD_one = 1;
 
-D = 50; % todo
+
 
 % Variablen aus Dateinamen extrahieren
-TimeString = char(extractBefore(filenameISEL,'_L'));
+TimeString = char(extractBefore(filenameISEL,'_D'));
+D = char(extractBetween(filenameISEL,'D','L'));
 L = char(extractBetween(filenameISEL,'L','W'));
 W = char(extractBetween(filenameISEL,'W','Q'));
 Q = char(extractBetween(filenameISEL,'Q','H'));
@@ -97,7 +112,8 @@ for i = 1:anzahlMesspunkteX
     startTime = iselTable.timeStartMeasurement(i);
     endTime = iselTable.timeEndMeasurement(i);
 
-    shiftTime = minutes(119)+seconds(59);
+    %     shiftTime = minutes(119)+seconds(59);
+    shiftTime = 0;
 
     startID = knnsearch(datenum(ussTable.Var1+shiftTime),datenum(startTime));
     endID = knnsearch(datenum(ussTable.Var1+shiftTime),datenum(endTime));
@@ -105,8 +121,15 @@ for i = 1:anzahlMesspunkteX
     for j = 1:iselTable.countSensors(1)
         xPosition(i,:) = iselTable.xPosition(i);
         yPosition(:,j) = iselTable.y0(1) - (j-1) * iselTable.deltaYSensors(1);
-        hLoopMean = mean(ussMatrix(startID:endID,j));
-        hLoopStdDev = std(ussMatrix(startID:endID,j));
+        % korrektur Durchbiegung bis einschl. 6.5.2022
+        if correctionNeeded == 1
+            hLoopMean = mean(ussMatrix(startID:endID,j)+correctionTable.correctDeflection(i,1));
+            hLoopStdDev = std(ussMatrix(startID:endID,j)+correctionTable.correctDeflection(i,1));
+        else
+            hLoopMean = mean(ussMatrix(startID:endID,j));
+            hLoopStdDev = std(ussMatrix(startID:endID,j));
+        end
+
         if hLoopMean > hUp + 5 || hLoopMean < 0 || hLoopStdDev > 5
             hMatrixMean(i,j) = NaN;
             hMatrixStdDev(i,j) = NaN;
@@ -122,13 +145,13 @@ SensorID = 2; % Sensor entlang +5cm Zylindermitte
 hSensor2 = hMatrixMean(:,SensorID);
 hDownMin = min(hSensor2(xPosition(:,SensorID) > 0));
 hUpMax = max(hSensor2(xPosition(:,SensorID) < 0));
-hCyl = hSensor2(xPosition(:,SensorID) == 0) - D - str2double(G);
+hCyl = hSensor2(xPosition(:,SensorID) == 0) - str2double(D) - str2double(G);
 
 % Kraftberechnung %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 dataTable = table; % Tabelle erstellen, die mit Werten beschrieben wird
 
 % dataTable.D = str2double(extractBetween(filenameLC,'D','L'))/1000; % diameter cylinder
-dataTable.D = D/1000; % todo
+dataTable.D = str2double(D)/1000; % todo
 dataTable.L = str2double(L)/1000; % length cylinder
 dataTable.gamma = str2double(W); % angle
 dataTable.Q = str2double(Q)/1000; % discharge
@@ -197,36 +220,59 @@ hDownCalc = dataTable.hDown - dataTable.G;
 % F_S = hydrostatische Druckkraft (Habil, Oertel (2012), Eq. 3.25)
 % h_up <= D und h_down <= D
 if hUpCalc <= dataTable.D && hDownCalc <= dataTable.D
-    caseNum = 1;
+    caseNum = 11;
+    caseStr = '1';
     % todo: gilt nur für 90 Grad wegen D
     dataTable.caseNum = caseNum;
-    dataTable.Fs = density * gravity * dataTable.L (hUpCalc^2 - hDownCalc^2);
+    dataTable.caseStr = caseStr;
+    dataTable.Fs = density * gravity * dataTable.L * (hUpCalc.^2 - hDownCalc.^2);
 
     % F_total = F_D + F_S
     dataTable.Ftotal = dataTable.FdBR + dataTable.Fs;
     % h_up > D und h_down <= D
-elseif hUpCalc > dataTable.D && hDownCalc < dataTable.D
-    caseNum = 2;
+elseif hUpCalc > dataTable.D && hDownCalc < dataTable.D && ...
+        round(dataTable.hDownMin - dataTable.hgr,3) >= 0
+    caseNum = 21;
+    caseStr = '2A';
     % todo: gilt nur für 90 Grad wegen L und D
     dataTable.caseNum = caseNum;
-    dataTable.Fs = density * gravity * dataTable.L * (dataTable.D .* (hUpCalc - 0.5 * dataTable.D) -0.5 * hDownCalc.^2);
+    dataTable.caseStr = caseStr;
+    dataTable.Fs = density * gravity * dataTable.L * ...
+        (dataTable.D .* (hUpCalc - 0.5 * dataTable.D) -0.5 * hDownCalc.^2);
 
     % F_total = F_D + F_S
     dataTable.Ftotal = dataTable.FdBR + dataTable.Fs;
     % h_up > D und h_down > D
-elseif hUpCalc > dataTable.D && hDownCalc > dataTable.D && dataTable.hDownMin - dataTable.hgr > 0
-    caseNum = 3;
+elseif hUpCalc > dataTable.D && hDownCalc < dataTable.D && ...
+        round(dataTable.hDownMin - dataTable.hgr,3) < 0
+    caseNum = 22;
+    caseStr = '2B';
+    % todo: gilt nur für 90 Grad wegen L und D
     dataTable.caseNum = caseNum;
+    dataTable.caseStr = caseStr;
+    dataTable.Fs = density * gravity * dataTable.L * ...
+        (dataTable.D .* (hUpCalc - 0.5 * dataTable.D) -0.5 * hDownCalc.^2);
+
+    % F_total = F_D + F_S
+    dataTable.Ftotal = dataTable.FdBR + dataTable.Fs;
+    % h_up > D und h_down > D
+elseif hUpCalc > dataTable.D && hDownCalc > dataTable.D && ...
+        round(dataTable.hDownMin - dataTable.hgr,3) >= 0
+    caseNum = 31;
+    caseStr = '3A';
+    dataTable.caseNum = caseNum;
+    dataTable.caseStr = caseStr;
     dataTable.Fs = density * gravity * dataTable.Aref * (hUpCalc - hDownCalc);
 
     % F_total = F_D + F_S
     dataTable.Ftotal = dataTable.FdBR + dataTable.Fs;
-elseif hUpCalc > dataTable.D && hDownCalc > dataTable.D && dataTable.hDownMin - dataTable.hgr < 0
-    caseNum = 4;
+elseif hUpCalc > dataTable.D && hDownCalc > dataTable.D && ...
+        round(dataTable.hDownMin - dataTable.hgr,3) < 0
+    caseNum = 32;
+    caseStr = '3B';
     dataTable.caseNum = caseNum;
-    % specific momentum Turcotte, 2016
-%     dataTable.FspecMom = density * gravity * dataTable.L /B *(((dataTable.Q/B)^2 / (gravity *dataTable.hUp) + (dataTable.hUp^2 /2)) ...
-%         - ((dataTable.Q/B)^2 /(gravity *dataTable.hDown) + (dataTable.hDown^2 /2)));
+    dataTable.caseStr = caseStr;
+
 
     dataTable.Fs = density * gravity * dataTable.Aref * (hUpCalc - hDownCalc);
 
@@ -234,7 +280,9 @@ elseif hUpCalc > dataTable.D && hDownCalc > dataTable.D && dataTable.hDownMin - 
     dataTable.Ftotal = dataTable.FdBR + dataTable.Fs;
 end
 
-
+% specific momentum Turcotte, 2016
+dataTable.FspecMom = density * gravity * dataTable.L /B *(((dataTable.Q/B)^2 / (gravity *dataTable.hUp) + (dataTable.hUp^2 /2)) ...
+    - ((dataTable.Q/B)^2 /(gravity *dataTable.hDown) + (dataTable.hDown^2 /2)));
 
 
 % Ausgabe im Command Window
@@ -251,110 +299,115 @@ disp(['F_D,BR = ',num2str(dataTable.FdBR,'%.2f'),' N'])
 disp(['F_S = ',num2str(dataTable.Fs,'%.2f'),' N'])
 disp(' ')
 
-% Daten plotten %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-try
-    close all
-catch ME
-end
-
-font = 'Arial';
-fontSize = 12;
-f = figure('DefaultTextFontName', font, ...
-    'DefaultAxesFontName', font,...
-    'DefaultAxesFontSize',fontSize, ...
-    'DefaultTextFontSize',fontSize);
-f.Name = 'WSL';
-f.Color = [1 1 1];
-f.Units = 'centimeters';    
-f.InnerPosition = [5 5 30 24];
-f.WindowState = 'normal'; %fullscreen, minimize, normal, maximize
-
-hold on
-for k = 1:iselTable.countSensors(1)
-    x = xPosition(:,k);
-    y = hMatrixMean(:,k);
-    errSdt = hMatrixStdDev(:,k);
-    xs = x(~isnan(y));
-    ys = y(~isnan(y));
-    errSdts = errSdt(~isnan(y));
-    %     yi = interp1(xs, ys, x, 'Linear');
-    wslPlot = errorbar(xs,ys,errSdts,'-');
-    wslPlot.DisplayName = ['\sly\rm = ',num2str(yPosition(1,k)),' mm'];
-end
-
-hUpPlot = plot([hUpXposition,-500],[hUp,hUp],'--');
-hUpPlot.DisplayName = ['\slh_{up} (x\rm = ',num2str(hUpXposition),' mm)'];
-hUpPlot.LineWidth = 2;
-
-hDownPlot = plot([500,hDownXposition],[hDown,hDown],'--');
-hDownPlot.DisplayName = ['\slh_{down} (x\rm = ',num2str(hDownXposition),' mm)'];
-hDownPlot.LineWidth = 2;
-
-hGrPlot = plot([0,500],[dataTable.hgr*1000,dataTable.hgr*1000],'--');
-hGrPlot.DisplayName = '\slh_{gr}';
-hGrPlot.LineWidth = 2;
-
-% Zylinder
-posCylinder = [-25 2 50 50];
-cylinderplot = rectangle('Position',posCylinder,'Curvature',[1 1]);
-cylinderplot.FaceColor = [136/255 0 0];
-% cylinderplot.EdgeColor = 'none';
-
-annotationDimension = [.15 .13 .3 .3];
-annotationString = {['Case# ',num2str(caseNum)];
-    ['\slh_{up}\rm = ',num2str(dataTable.hUp*1000,'%.1f'), ...
-    ' mm, \slh_{down}\rm = ',num2str(dataTable.hDown*1000,'%.1f'),' mm'];
-    ['\slh_{up,max}\rm = ',num2str(dataTable.hUpMax*1000,'%.1f'),' mm', ...
-    ', \slh_{down,min}\rm = ',num2str(dataTable.hDownMin*1000,'%.1f'),' mm'];
-    ['\slh_{gr}\rm = ',num2str(dataTable.hgr*1000,'%.1f'),' mm'];
-    ['\slF_{measured}\rm = ',num2str(dataTable.FmeasuredUncor,'%.2f'),' N'];
-    ['\slF_{calculated}\rm = ',num2str(dataTable.Ftotal,'%.2f'),' N', ...
-    ', \sl\DeltaF\rm = ',num2str(dataTable.Ftotal-dataTable.FmeasuredUncor,'%.2f'), ...
-    ' N (',num2str(((dataTable.Ftotal/dataTable.FmeasuredUncor)-1)*100,'%.1f'),'%)'];
-    ['\slF_{D,BR}\rm = ',num2str(dataTable.FdBR,'%.2f'),' N', ...
-    ', \slF_S\rm = ',num2str(dataTable.Fs,'%.2f'),' N']};
-AnnottationBox = annotation('textbox',annotationDimension,'String',annotationString);
-AnnottationBox.FontName = font;
-AnnottationBox.FontSize = fontSize*0.75;
-AnnottationBox.FitBoxToText = 'on';
-AnnottationBox.BackgroundColor = [.95 .95 .95];
-
-xlim([-1000 1400])
-ylim([0 150])
-legend(Location="northeast")
-
-grid on
-
-scaleFactor = 5;
-daspect([1 1/scaleFactor 1])
-
-xlabel('\slx\rm [mm]')
-ylabel('\slh\rm [mm]')
-titleString = ['\rm\slu\rm = ',num2str(dataTable.u,'%.2f'),' m/s, \slL\rm = ',L,' mm, \sl\gamma\rm = ',W,'°, \slh\rm-scalefactor = ',num2str(scaleFactor)];
-title(titleString)
-
-pause(1)
-
-% Daten in Tabelle schreiben und Bild exportieren %%%%%%%%%%%%%%%%%%%%%%%%%
+% Output directory
 outputDirectory = 'OutputWSL';
 if not(isfolder(outputDirectory))
     mkdir(outputDirectory) % Ordner für Export im Ordner mit den Messdaten erstellen
 end
 
-figureName = [outputDirectory,'/',TimeString,'_D',num2str(D),'L',L,'W',W,'Q',Q,'U',uChar,'H',h,'G',G,'_',Position,'_WSL.png'];
-try
-    delete(figureName)
-catch ME
+% Daten plotten %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if plotting == 1
+
+    try
+        close all
+    catch ME
+    end
+
+    font = 'Arial';
+    fontSize = 12;
+    f = figure('DefaultTextFontName', font, ...
+        'DefaultAxesFontName', font,...
+        'DefaultAxesFontSize',fontSize, ...
+        'DefaultTextFontSize',fontSize);
+    f.Name = 'WSL';
+    f.Color = [1 1 1];
+    f.Units = 'centimeters';
+    f.InnerPosition = [5 5 30 24];
+    f.WindowState = 'normal'; %fullscreen, minimize, normal, maximize
+
+    hold on
+    for k = 1:iselTable.countSensors(1)
+        x = xPosition(:,k);
+        y = hMatrixMean(:,k);
+        errSdt = hMatrixStdDev(:,k);
+        xs = x(~isnan(y));
+        ys = y(~isnan(y));
+        errSdts = errSdt(~isnan(y));
+        %     yi = interp1(xs, ys, x, 'Linear');
+        wslPlot = errorbar(xs,ys,errSdts,'-');
+        wslPlot.DisplayName = ['\sly\rm = ',num2str(yPosition(1,k)),' mm'];
+    end
+
+    hUpPlot = plot([hUpXposition,-500],[hUp,hUp],'--');
+    hUpPlot.DisplayName = ['\slh_{up} (x\rm = ',num2str(hUpXposition),' mm)'];
+    hUpPlot.LineWidth = 2;
+
+    hDownPlot = plot([500,hDownXposition],[hDown,hDown],'--');
+    hDownPlot.DisplayName = ['\slh_{down} (x\rm = ',num2str(hDownXposition),' mm)'];
+    hDownPlot.LineWidth = 2;
+
+    hGrPlot = plot([0,500],[dataTable.hgr*1000,dataTable.hgr*1000],'--');
+    hGrPlot.DisplayName = '\slh_{gr}';
+    hGrPlot.LineWidth = 2;
+
+    % Zylinder
+    posCylinder = [-str2double(D)/2 str2double(G) str2double(D) str2double(D)];
+    cylinderplot = rectangle('Position',posCylinder,'Curvature',[1 1]);
+    cylinderplot.FaceColor = [136/255 0 0];
+    % cylinderplot.EdgeColor = 'none';
+
+    annotationDimension = [.15 .13 .3 .3];
+    annotationString = {['Case# ',num2str(caseNum)];
+        ['\slh_{up}\rm = ',num2str(dataTable.hUp*1000,'%.1f'), ...
+        ' mm, \slh_{down}\rm = ',num2str(dataTable.hDown*1000,'%.1f'),' mm'];
+        ['\slh_{up,max}\rm = ',num2str(dataTable.hUpMax*1000,'%.1f'),' mm', ...
+        ', \slh_{down,min}\rm = ',num2str(dataTable.hDownMin*1000,'%.1f'),' mm'];
+        ['\slh_{gr}\rm = ',num2str(dataTable.hgr*1000,'%.1f'),' mm'];
+        ['\slF_{measured}\rm = ',num2str(dataTable.FmeasuredUncor,'%.2f'),' N'];
+        ['\slF_{calculated}\rm = ',num2str(dataTable.Ftotal,'%.2f'),' N', ...
+        ', \sl\DeltaF\rm = ',num2str(dataTable.Ftotal-dataTable.FmeasuredUncor,'%.2f'), ...
+        ' N (',num2str(((dataTable.Ftotal/dataTable.FmeasuredUncor)-1)*100,'%.1f'),'%)'];
+        ['\slF_{D,BR}\rm = ',num2str(dataTable.FdBR,'%.2f'),' N', ...
+        ', \slF_S\rm = ',num2str(dataTable.Fs,'%.2f'),' N']};
+    AnnottationBox = annotation('textbox',annotationDimension,'String',annotationString);
+    AnnottationBox.FontName = font;
+    AnnottationBox.FontSize = fontSize*0.75;
+    AnnottationBox.FitBoxToText = 'on';
+    AnnottationBox.BackgroundColor = [.95 .95 .95];
+
+    xlim([-1000 1400])
+    ylim([0 150])
+    legend(Location="northeast")
+
+    grid on
+
+    scaleFactor = 5;
+    daspect([1 1/scaleFactor 1])
+
+    xlabel('\slx\rm [mm]')
+    ylabel('\slh\rm [mm]')
+    titleString = ['\rm\slu\rm = ',num2str(dataTable.u,'%.2f'),' m/s, \slL\rm = ',L,' mm, \sl\gamma\rm = ',W,'°, \slh\rm-scalefactor = ',num2str(scaleFactor)];
+    title(titleString)
+
+
+    % Daten in Tabelle schreiben und Bild exportieren %%%%%%%%%%%%%%%%%%%%%%%%%
+
+    figureName = [outputDirectory,'/',TimeString,'_D',D,'L',L,'W',W,'Q',Q,'U',uChar,'H',h,'G',G,'_',Position,'_WSL.png'];
+    try
+        delete(figureName)
+    catch ME
+    end
+    exportgraphics(f,figureName,'Resolution',400)
+    % close all
+
 end
-exportgraphics(f,figureName,'Resolution',400)
-% close all
 
 exportTable = table;
 exportTable.xPosition = xPosition;
 exportTable.yPosition = yPosition;
 exportTable.h = hMatrixMean;
 
-filename = [outputDirectory,'/',TimeString,'_D',num2str(D),'L',L,'W',W,'Q',Q,'U',uChar,'H',h,'G',G,'_',Position,'_WSL.xlsx'];
+filename = [outputDirectory,'/',TimeString,'_D',D,'L',L,'W',W,'Q',Q,'U',uChar,'H',h,'G',G,'_',Position,'_WSL.xlsx'];
 % filename = 'testOutput.xlsx';
 try
     delete(filename);
@@ -362,7 +415,7 @@ catch ME
 end
 writetable(exportTable,filename,'Sheet','Messdaten','WriteVariableNames',true);
 
-filename = [outputDirectory,'/',TimeString,'_D',num2str(D),'L',L,'W',W,'Q',Q,'U',uChar,'H',h,'G',G,'_',Position,'_DATA.xlsx'];
+filename = [outputDirectory,'/',TimeString,'_D',D,'L',L,'W',W,'Q',Q,'U',uChar,'H',h,'G',G,'_',Position,'_DATA.xlsx'];
 % filename = 'testOutput.xlsx';
 try
     delete(filename);
