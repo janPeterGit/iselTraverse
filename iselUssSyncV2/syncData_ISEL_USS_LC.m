@@ -172,7 +172,16 @@ dataTable.GdivD = dataTable.G/dataTable.D; % G/D
 dataTable.hDivD = dataTable.hUp/dataTable.D;
 dataTable.LdivB = dataTable.L/B;
 
-dataTable.Aref = sind(dataTable.gamma)*dataTable.L*dataTable.D + cosd(dataTable.gamma)*pi()/4*dataTable.D^2;
+hUpCalc = dataTable.hUp - dataTable.G;
+hDownCalc = dataTable.hDown - dataTable.G;
+%%%% Hier muss berechnet werden, dass der Zylinder teilweise unter Wasser
+%%%% ist und zudem gedreht wird % todo
+% dataTable.Aref = sind(dataTable.gamma)*dataTable.L*dataTable.D + cosd(dataTable.gamma)*pi()/4*dataTable.D^2;
+if hUpCalc > dataTable.D
+    dataTable.Aref = dataTable.L * dataTable.D;
+elseif hUpCalc <= dataTable.D
+    dataTable.Aref = dataTable.L * hUpCalc;
+end
 % dataTable.PipeRef = D_Pipe .* (dataTable.h - dataTable.D - dataTable.G);
 
 dataTable.BR = dataTable.Aref / (B * dataTable.hUp);
@@ -214,9 +223,6 @@ dataTable.FdBR = dataTable.Fd .* (1-dataTable.BR).^(-2);
 dataTable.Fs = NaN;
 dataTable.FspecMom = NaN;
 
-
-hUpCalc = dataTable.hUp - dataTable.G;
-hDownCalc = dataTable.hDown - dataTable.G;
 % F_S = hydrostatische Druckkraft (Habil, Oertel (2012), Eq. 3.25)
 % h_up <= D und h_down <= D
 if hUpCalc <= dataTable.D && hDownCalc <= dataTable.D

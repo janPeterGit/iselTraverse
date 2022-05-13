@@ -25,6 +25,8 @@ matlabColor = {'#0072BD',...
 
 dateIndexPlot = 0;
 
+B = 0.79;
+
 %%
 
 matlabDirectory = pwd;
@@ -95,7 +97,8 @@ for kk = 1:length(uniqueLength)
         pltValues.Marker = markerSet6(kk);
         pltValues.MarkerEdgeColor = 'k';
         pltValues.MarkerFaceColor = matlabColor{j};
-        pltValues.DisplayName = [num2str(size(dataTableCaseSelected,1)),'x case ',caseStr{j},', $L = ',num2str(uniqueLength(kk)),'$ m'];
+        pltValues.DisplayName = [num2str(size(dataTableCaseSelected,1)),...
+            'x case ',caseStr{j},', $L/B = ',num2str(uniqueLength(kk)/B),'$'];
     end
 end
 
@@ -131,13 +134,16 @@ grid on
 scaleFactor = 1;
 daspect([1 1/scaleFactor 1])
 
-maxLimit = max(max(xlim,ylim));
+maxLimit = max(max(dataTableCaseSelected.FmeasuredUncor,...
+            dataTableCaseSelected.Ftotal));
 
 xlim([0 maxLimit])
 ylim([0 maxLimit])
 
 xlabel('$F_{measured}$ [N]','Interpreter','latex')
 ylabel('$F_{calculated}$ [N]','Interpreter','latex')
+
+title('$F_{total} = F_D + F_S$ (see Oertel, 2012)','Interpreter','latex')
 
 %%
 % save dataTable and plot
@@ -157,6 +163,112 @@ end
 exportgraphics(f,figureName,'Resolution',400)
 % close all
 
+%%
+% plot data
+
+font = 'Arial';
+fontSize = 24;
+f = figure('DefaultTextFontName', font, ...
+    'DefaultAxesFontName', font,...
+    'DefaultAxesFontSize',fontSize, ...
+    'DefaultTextFontSize',fontSize);
+f.Name = 'Forces';
+f.Color = [1 1 1];
+f.Units = 'centimeters';
+f.InnerPosition = [5 5 15 12];
+f.WindowState = 'maximize'; %fullscreen, minimize, normal, maximize
+
+
+maxLimit = max(max(dataTableCaseSelected.FmeasuredUncor,...
+            dataTableCaseSelected.FspecMom));
+% plot each Length
+uniqueLength = unique(dataTable.L);
+for kk = 1:length(uniqueLength)
+    dataTableLengthSelected = dataTable(dataTable.L == uniqueLength(kk),:);
+
+    caseNums = unique(dataTableLengthSelected.caseNum);
+    caseStr = unique(dataTableLengthSelected.caseStr);
+    % plot calculated Force values
+    % each case
+    subplot(1,2,kk); hold on
+    addOneToOneLine(dataTable.FmeasuredUncor)
+    addTrendline(1,dataTableLengthSelected.FmeasuredUncor,...
+            dataTableLengthSelected.FspecMom)
+    for j = 1:length(caseNums)%-1
+        
+        
+        dataTableCaseSelected = dataTableLengthSelected(dataTableLengthSelected.caseNum == caseNums(j),:);
+        pltValues = plot(dataTableCaseSelected.FmeasuredUncor,...
+            dataTableCaseSelected.FspecMom);
+
+        pltValues.LineStyle = 'none';
+        pltValues.MarkerSize = 8;
+        pltValues.Marker = markerSet6(kk);
+        pltValues.MarkerEdgeColor = 'k';
+        pltValues.MarkerFaceColor = matlabColor{j};
+        pltValues.DisplayName = [num2str(size(dataTableCaseSelected,1)),...
+            'x case ',caseStr{j}];
+
+        
+        
+        lgd = legend('Interpreter','latex');
+        lgd.Location = 'northwest';
+
+        grid on
+
+        scaleFactor = 1;
+        daspect([1 1/scaleFactor 1])
+
+        
+
+        xlim([0 maxLimit])
+        ylim([0 maxLimit])
+
+        xlabel('$F_{measured}$ [N]','Interpreter','latex')
+        ylabel('$F_{calculated}$ [N]','Interpreter','latex')
+
+        title(['$L/B = ',num2str(uniqueLength(kk)/B),'$'], ...
+            'Interpreter','latex')
+    end
+end
+
+
+
+measurementDays = unique(dataTable.measurementDay);
+if dateIndexPlot == 1
+    % DatumsIndex plotten
+    for jj = 1:length(measurementDays)
+        dateText01 = text(dataTable.FmeasuredUncor(dataTable.measurementDay == measurementDays(jj))+0.08, ...
+            dataTable.Ftotal(dataTable.measurementDay == measurementDays(jj)),num2str(jj),'FontSize',fontSize/2);
+        %     dateText02 = text(dataTable.FmeasuredUncor(dataTable.measurementDay == measurementDays(jj))+0.08, ...
+        %         dataTable.FspecMom(dataTable.measurementDay == measurementDays(jj)),num2str(jj),'FontSize',fontSize/2);
+    end
+end
+
+% xlim([-1000 1400])
+% ylim([0 150])
+
+
+sgtitle('Specific Momentum Eq. (see Turcotte, 2016)', ...
+    'Interpreter','latex','FontSize',fontSize*1.2)
+
+%%
+% save dataTable and plot
+cd(matlabDirectory) % go to matlab folder
+
+outputDirectory = 'OutputForces';
+if not(isfolder(outputDirectory))
+    mkdir(outputDirectory) % Ordner für Export im Ordner mit den Messdaten erstellen
+end
+
+% figureName = [outputDirectory,'/D',num2str(D),'L',L,'W',W,'Q',Q,'U',uChar,'H',h,'G',G,'_',Position,'.png'];
+figureName = [outputDirectory,'/1to1-Forces_SpecMom.png'];
+try
+    delete(figureName)
+catch ME
+end
+exportgraphics(f,figureName,'Resolution',400)
+% close all
 
 %%
 % plot h_down - h_up
@@ -325,5 +437,15 @@ yPoly = polyval(poly,xPoly);
 trendline = plot(xPoly,yPoly);
 trendline.LineStyle = '--';
 trendline.Color = 'k';
-trendline.DisplayName = ['fitted polynom ',num2str(polyGrad),'. grade'];
+% trendline.DisplayName = ['fitted polynom ',num2str(polyGrad),'. grade'];
+trendline.DisplayName = 'trendline';
+end
+
+function addOneToOneLine(inputValues)
+% plot regressionen 1:1 line
+pltRegression = plot(inputValues,inputValues);
+pltRegression.LineStyle = '-';
+pltRegression.Color = 'k';
+pltRegression.Marker = 'none';
+pltRegression.DisplayName = '1:1';
 end
