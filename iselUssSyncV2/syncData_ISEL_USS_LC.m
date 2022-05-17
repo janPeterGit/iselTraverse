@@ -9,26 +9,42 @@ close all
 % read ISEL log Datei
 matlabFolder = pwd;
 
+% alle oder nur ausgewählter measurementDay?
+allDays = 0;
+
 measurementDirectory = uigetdir('LogISEL_LogUSS_LogLC/');
-cd(measurementDirectory)
-measurements = ls('*.xlsx');
-cd(matlabFolder)
-
-
-
-for i = 1:size(measurements,1)
-    disp('#################################################')
-    disp(['Measurement ',num2str(i),'/',num2str(size(measurements,1))])
-
-    filenameISEL = convertStringsToChars(strtrim(convertCharsToStrings(measurements(i,:))));
-    filenameUSS = [filenameISEL(1:end-5),'.csv'];
-    filenameLC = [filenameISEL(1:end-5),'.txt'];
-
-    % function syncData
-    syncData(measurementDirectory,filenameISEL,filenameUSS,filenameLC,...
-        matlabFolder)
+if allDays == 1
+    measurementDays = dir(measurementDirectory);
+else
+    measurementDays = NaN(3,1);
 end
 
+for j = 3:size(measurementDays,1) % 3 wegen . und ..
+
+    if allDays == 1
+    selectedDay = [measurementDays(j).folder,'\',measurementDays(j).name];
+    else
+        selectedDay = measurementDirectory;
+    end
+    cd(selectedDay)
+    measurements = ls('*.xlsx');
+    cd(matlabFolder)
+
+
+
+    for i = 1:size(measurements,1)
+        disp('#################################################')
+        disp(['Measurement ',num2str(i),'/',num2str(size(measurements,1))])
+
+        filenameISEL = strtrim(measurements(i,:));
+        filenameUSS = [filenameISEL(1:end-5),'.csv'];
+        filenameLC = [filenameISEL(1:end-5),'.txt'];
+
+        % function syncData
+        syncData(selectedDay,filenameISEL,filenameUSS,filenameLC,...
+            matlabFolder)
+    end
+end
 disp('All done')
 
 
@@ -154,6 +170,7 @@ dataTable = table; % Tabelle erstellen, die mit Werten beschrieben wird
 dataTable.D = str2double(D)/1000; % todo
 dataTable.L = str2double(L)/1000; % length cylinder
 dataTable.gamma = str2double(W); % angle
+dataTable.Position = Position;
 dataTable.Q = str2double(Q)/1000; % discharge
 
 dataTable.hUp = hUp/1000;

@@ -20,7 +20,7 @@ matlabColor = {'#0072BD',...
     '#4DBEEE',...
     '#77AC30',...
     '#7E2F8E',...
-    '#EDB120'    
+    '#EDB120'
     };
 
 dateIndexPlot = 0;
@@ -135,7 +135,7 @@ scaleFactor = 1;
 daspect([1 1/scaleFactor 1])
 
 maxLimit = max(max(dataTableCaseSelected.FmeasuredUncor,...
-            dataTableCaseSelected.Ftotal));
+    dataTableCaseSelected.Ftotal));
 
 xlim([0 maxLimit])
 ylim([0 maxLimit])
@@ -172,15 +172,15 @@ f = figure('DefaultTextFontName', font, ...
     'DefaultAxesFontName', font,...
     'DefaultAxesFontSize',fontSize, ...
     'DefaultTextFontSize',fontSize);
-f.Name = 'Forces';
+f.Name = 'Forces Specific Momentum';
 f.Color = [1 1 1];
 f.Units = 'centimeters';
 f.InnerPosition = [5 5 15 12];
 f.WindowState = 'maximize'; %fullscreen, minimize, normal, maximize
 
 
-maxLimit = max(max(dataTableCaseSelected.FmeasuredUncor,...
-            dataTableCaseSelected.FspecMom));
+maxLimit = max(max(dataTable.FmeasuredUncor,...
+    dataTable.FspecMom));
 % plot each Length
 uniqueLength = unique(dataTable.L);
 for kk = 1:length(uniqueLength)
@@ -188,66 +188,59 @@ for kk = 1:length(uniqueLength)
 
     caseNums = unique(dataTableLengthSelected.caseNum);
     caseStr = unique(dataTableLengthSelected.caseStr);
+    positions = unique(cell2mat(dataTableLengthSelected.Position));
     % plot calculated Force values
     % each case
     subplot(1,2,kk); hold on
     addOneToOneLine(dataTable.FmeasuredUncor)
     addTrendline(1,dataTableLengthSelected.FmeasuredUncor,...
-            dataTableLengthSelected.FspecMom)
-    for j = 1:length(caseNums)%-1
+        dataTableLengthSelected.FspecMom)
+    for ll = 1:length(positions)
         
-        
-        dataTableCaseSelected = dataTableLengthSelected(dataTableLengthSelected.caseNum == caseNums(j),:);
-        pltValues = plot(dataTableCaseSelected.FmeasuredUncor,...
-            dataTableCaseSelected.FspecMom);
+        positionIndex = strcmp(dataTableLengthSelected.Position, positions(ll,:));
+        [idR,idC] = find(positionIndex == 1);
+        dataTablePositionSelected = dataTableLengthSelected(min(idR):max(idR),:);
+    
+        for j = 1:length(caseNums)%-1
 
-        pltValues.LineStyle = 'none';
-        pltValues.MarkerSize = 8;
-        pltValues.Marker = markerSet6(kk);
-        pltValues.MarkerEdgeColor = 'k';
-        pltValues.MarkerFaceColor = matlabColor{j};
-        pltValues.DisplayName = [num2str(size(dataTableCaseSelected,1)),...
-            'x case ',caseStr{j}];
 
-        
-        
-        lgd = legend('Interpreter','latex');
-        lgd.Location = 'northwest';
+            dataTableCaseSelected = dataTablePositionSelected(dataTablePositionSelected.caseNum == caseNums(j),:);
+            if size(dataTableCaseSelected,1) > 0
+                pltValues = plot(dataTableCaseSelected.FmeasuredUncor,...
+                    dataTableCaseSelected.FspecMom);
 
-        grid on
+                pltValues.LineStyle = 'none';
+                pltValues.MarkerSize = 8;
+                pltValues.Marker = markerSet6(ll);
+                pltValues.MarkerEdgeColor = 'k';
+                pltValues.MarkerFaceColor = matlabColor{j};
+                pltValues.DisplayName = [num2str(size(dataTableCaseSelected,1)),...
+                    'x case ',caseStr{j},', ',positions(ll,:)];
 
-        scaleFactor = 1;
-        daspect([1 1/scaleFactor 1])
+            end
 
-        
+            lgd = legend('Interpreter','latex');
+            lgd.Location = 'northwest';
 
-        xlim([0 maxLimit])
-        ylim([0 maxLimit])
+            grid on
 
-        xlabel('$F_{measured}$ [N]','Interpreter','latex')
-        ylabel('$F_{calculated}$ [N]','Interpreter','latex')
+            scaleFactor = 1;
+            daspect([1 1/scaleFactor 1])
 
-        title(['$L/B = ',num2str(uniqueLength(kk)/B),'$'], ...
-            'Interpreter','latex')
+
+
+            xlim([0 maxLimit])
+            ylim([0 maxLimit])
+
+            xlabel('$F_{measured}$ [N]','Interpreter','latex')
+            ylabel('$F_{calculated}$ [N]','Interpreter','latex')
+
+            title(['$L/B = ',num2str(uniqueLength(kk)/B),'$'], ...
+                'Interpreter','latex')
+        end
     end
+
 end
-
-
-
-measurementDays = unique(dataTable.measurementDay);
-if dateIndexPlot == 1
-    % DatumsIndex plotten
-    for jj = 1:length(measurementDays)
-        dateText01 = text(dataTable.FmeasuredUncor(dataTable.measurementDay == measurementDays(jj))+0.08, ...
-            dataTable.Ftotal(dataTable.measurementDay == measurementDays(jj)),num2str(jj),'FontSize',fontSize/2);
-        %     dateText02 = text(dataTable.FmeasuredUncor(dataTable.measurementDay == measurementDays(jj))+0.08, ...
-        %         dataTable.FspecMom(dataTable.measurementDay == measurementDays(jj)),num2str(jj),'FontSize',fontSize/2);
-    end
-end
-
-% xlim([-1000 1400])
-% ylim([0 150])
-
 
 sgtitle('Specific Momentum Eq. (see Turcotte, 2016)', ...
     'Interpreter','latex','FontSize',fontSize*1.2)
