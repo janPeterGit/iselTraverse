@@ -72,10 +72,10 @@ forceArray = importFileLC(filenameLC);
 % korrektur Durchbiegung bis einschl. 6.5.2022
 correctionFolder = 'correctDeflection';
 if exist(correctionFolder, 'dir')
-    correctionNeeded = 1;
+    deflectionCorrection = 1;
     correctionTable =  readtable([correctionFolder,'/correctDeflection.xlsx']);
 else
-    correctionNeeded = 0;
+    deflectionCorrection = 0;
 end
 
 cd(matlabFolder)
@@ -104,6 +104,8 @@ h = char(extractBetween(filenameISEL,'H','G'));
 G = char(extractBetween(filenameISEL,'G','_'));
 Position = char(extractBetween(filenameISEL,['G',G,'_'],'.x'));
 
+
+
 % Fließgeschwindigkeit berechnen
 u = round(str2double(Q)/str2double(h)/B*1000/1000,3);
 uChar = sprintf('%.2f',u);
@@ -124,6 +126,14 @@ hMatrixStdDev = hMatrixMean;
 xPosition = hMatrixMean;
 yPosition = hMatrixMean;
 
+% Korrektur durch Unebene Sohle für case S(!)
+if Position == 'S'
+    bedLevelCorrection = 1;
+    correctBedLevel = table2array(readtable('emptyFlume\bedLevelCaseS.xlsx'));
+end
+
+% einladen der Messdaten aus Ultraschallmessung für Sensoren 1 und 2
+% (x-Traverse)
 for i = 1:anzahlMesspunkteX
     startTime = iselTable.timeStartMeasurement(i);
     endTime = iselTable.timeEndMeasurement(i);
@@ -138,21 +148,28 @@ for i = 1:anzahlMesspunkteX
         xPosition(i,:) = iselTable.xPosition(i);
         yPosition(:,j) = iselTable.y0(1) - (j-1) * iselTable.deltaYSensors(1);
         % korrektur Durchbiegung bis einschl. 6.5.2022
-        if correctionNeeded == 1
-            hLoopMean = mean(ussMatrix(startID:endID,j)+correctionTable.correctDeflection(i,1));
-            hLoopStdDev = std(ussMatrix(startID:endID,j)+correctionTable.correctDeflection(i,1));
+        if deflectionCorrection == 1
+            hLoopMean = mean(ussMatrix(startID:endID,j)...
+                +correctionTable.correctDeflection(i,1));
+            hLoopStdDev = std(ussMatrix(startID:endID,j)...
+                +correctionTable.correctDeflection(i,1));
+        elseif bedLevelCorrection == 1
+            hLoopMean = mean(ussMatrix(startID:endID,j))...
+                -correctBedLevel(i,j);
+            hLoopStdDev = std(ussMatrix(startID:endID,j))...
+                -correctBedLevel(i,j);
         else
             hLoopMean = mean(ussMatrix(startID:endID,j));
             hLoopStdDev = std(ussMatrix(startID:endID,j));
         end
 
-        if hLoopMean > hUp + 5 || hLoopMean < 0 || hLoopStdDev > 5
-            hMatrixMean(i,j) = NaN;
-            hMatrixStdDev(i,j) = NaN;
-        else
+%         if hLoopMean > hUp + 5 || hLoopMean < 0 || hLoopStdDev > 5
+%             hMatrixMean(i,j) = NaN;
+%             hMatrixStdDev(i,j) = NaN;
+%         else
             hMatrixMean(i,j) = hLoopMean;
             hMatrixStdDev(i,j) = hLoopStdDev;
-        end
+%         end
     end
 end
 
@@ -160,7 +177,7 @@ SensorID = 2; % Sensor entlang +5cm Zylindermitte
 
 hSensor2 = hMatrixMean(:,SensorID);
 hDownMin = min(hSensor2(xPosition(:,SensorID) > 0));
-hUpMax = max(hSensor2(xPosition(:,SensorID) < 0));
+hUpMax = max(hSensor2(xPosition(:,SensorID) < str2double(D)/1000/2));
 hCyl = hSensor2(xPosition(:,SensorID) == 0) - str2double(D) - str2double(G);
 
 % Kraftberechnung %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -189,15 +206,17 @@ dataTable.GdivD = dataTable.G/dataTable.D; % G/D
 dataTable.hDivD = dataTable.hUp/dataTable.D;
 dataTable.LdivB = dataTable.L/B;
 
-hUpCalc = dataTable.hUp - dataTable.G;
-hDownCalc = dataTable.hDown - dataTable.G;
+hUpMinusG = dataTable.hUp - dataTable.G;
+hUpMaxMinusG = dataTable.hUpMax - dataTable.G;
+hDownMinusG = dataTable.hDown - dataTable.G;
 %%%% Hier muss berechnet werden, dass der Zylinder teilweise unter Wasser
 %%%% ist und zudem gedreht wird % todo
 % dataTable.Aref = sind(dataTable.gamma)*dataTable.L*dataTable.D + cosd(dataTable.gamma)*pi()/4*dataTable.D^2;
-if hUpCalc > dataTable.D
+% todo: hier muss nicht hUpMinusG genutzt werden sondern hUpMaxMinusG
+if hUpMinusG > dataTable.D
     dataTable.Aref = dataTable.L * dataTable.D;
-elseif hUpCalc <= dataTable.D
-    dataTable.Aref = dataTable.L * hUpCalc;
+elseif hUpMinusG <= dataTable.D
+    dataTable.Aref = dataTable.L * hUpMinusG;
 end
 % dataTable.PipeRef = D_Pipe .* (dataTable.h - dataTable.D - dataTable.G);
 
@@ -240,20 +259,24 @@ dataTable.FdBR = dataTable.Fd .* (1-dataTable.BR).^(-2);
 dataTable.Fs = NaN;
 dataTable.FspecMom = NaN;
 
+extraMargin = 2/1000;
+DplusMargin = dataTable.D + extraMargin;
 % F_S = hydrostatische Druckkraft (Habil, Oertel (2012), Eq. 3.25)
 % h_up <= D und h_down <= D
-if hUpCalc <= dataTable.D && hDownCalc <= dataTable.D
+if hUpMaxMinusG <= DplusMargin &&...
+        hUpMinusG <= DplusMargin &&...
+        hDownMinusG <= DplusMargin
     caseNum = 11;
     caseStr = '1';
     % todo: gilt nur für 90 Grad wegen D
     dataTable.caseNum = caseNum;
     dataTable.caseStr = caseStr;
-    dataTable.Fs = density * gravity * dataTable.L * (hUpCalc.^2 - hDownCalc.^2);
+    dataTable.Fs = density * gravity * dataTable.L * (hUpMinusG.^2 - hDownMinusG.^2);
 
     % F_total = F_D + F_S
     dataTable.Ftotal = dataTable.FdBR + dataTable.Fs;
     % h_up > D und h_down <= D
-elseif hUpCalc > dataTable.D && hDownCalc < dataTable.D && ...
+elseif hUpMinusG > DplusMargin && hDownMinusG < DplusMargin && ...
         round(dataTable.hDownMin - dataTable.hgr,3) >= 0
     caseNum = 21;
     caseStr = '2A';
@@ -261,12 +284,12 @@ elseif hUpCalc > dataTable.D && hDownCalc < dataTable.D && ...
     dataTable.caseNum = caseNum;
     dataTable.caseStr = caseStr;
     dataTable.Fs = density * gravity * dataTable.L * ...
-        (dataTable.D .* (hUpCalc - 0.5 * dataTable.D) -0.5 * hDownCalc.^2);
+        (dataTable.D .* (hUpMinusG - 0.5 * dataTable.D) -0.5 * hDownMinusG.^2);
 
     % F_total = F_D + F_S
     dataTable.Ftotal = dataTable.FdBR + dataTable.Fs;
     % h_up > D und h_down > D
-elseif hUpCalc > dataTable.D && hDownCalc < dataTable.D && ...
+elseif hUpMinusG > DplusMargin && hDownMinusG < DplusMargin && ...
         round(dataTable.hDownMin - dataTable.hgr,3) < 0
     caseNum = 22;
     caseStr = '2B';
@@ -274,22 +297,22 @@ elseif hUpCalc > dataTable.D && hDownCalc < dataTable.D && ...
     dataTable.caseNum = caseNum;
     dataTable.caseStr = caseStr;
     dataTable.Fs = density * gravity * dataTable.L * ...
-        (dataTable.D .* (hUpCalc - 0.5 * dataTable.D) -0.5 * hDownCalc.^2);
+        (dataTable.D .* (hUpMinusG - 0.5 * dataTable.D) -0.5 * hDownMinusG.^2);
 
     % F_total = F_D + F_S
     dataTable.Ftotal = dataTable.FdBR + dataTable.Fs;
     % h_up > D und h_down > D
-elseif hUpCalc > dataTable.D && hDownCalc > dataTable.D && ...
+elseif hUpMinusG > DplusMargin && hDownMinusG > DplusMargin && ...
         round(dataTable.hDownMin - dataTable.hgr,3) >= 0
     caseNum = 31;
     caseStr = '3A';
     dataTable.caseNum = caseNum;
     dataTable.caseStr = caseStr;
-    dataTable.Fs = density * gravity * dataTable.Aref * (hUpCalc - hDownCalc);
+    dataTable.Fs = density * gravity * dataTable.Aref * (hUpMinusG - hDownMinusG);
 
     % F_total = F_D + F_S
     dataTable.Ftotal = dataTable.FdBR + dataTable.Fs;
-elseif hUpCalc > dataTable.D && hDownCalc > dataTable.D && ...
+elseif hUpMinusG > DplusMargin && hDownMinusG > DplusMargin && ...
         round(dataTable.hDownMin - dataTable.hgr,3) < 0
     caseNum = 32;
     caseStr = '3B';
@@ -297,10 +320,25 @@ elseif hUpCalc > dataTable.D && hDownCalc > dataTable.D && ...
     dataTable.caseStr = caseStr;
 
 
-    dataTable.Fs = density * gravity * dataTable.Aref * (hUpCalc - hDownCalc);
+
+    dataTable.Fs = density * gravity * dataTable.Aref * (hUpMinusG - hDownMinusG);
 
     % F_total = F_D + F_S
     dataTable.Ftotal = dataTable.FdBR + dataTable.Fs;
+
+else
+    disp(['Keine Zuordnung möglich für die Messung vom ',TimeString])
+    caseNum = 99;
+    caseStr = 'kA';
+    dataTable.caseNum = caseNum;
+    dataTable.caseStr = caseStr;
+
+
+
+    dataTable.Fs = NaN;
+
+    % F_total = F_D + F_S
+    dataTable.Ftotal = NaN;
 end
 
 % specific momentum Turcotte, 2016
@@ -372,6 +410,10 @@ if plotting == 1
     hGrPlot = plot([0,500],[dataTable.hgr*1000,dataTable.hgr*1000],'--');
     hGrPlot.DisplayName = '\slh_{gr}';
     hGrPlot.LineWidth = 2;
+
+    hDecision = plot([-100,0],[(DplusMargin+dataTable.G)*1000,(DplusMargin+dataTable.G)*1000],':');
+    hDecision.DisplayName = '\slG + D + \rmmargin';
+    hDecision.LineWidth = 1;
 
     % Zylinder
     posCylinder = [-str2double(D)/2 str2double(G) str2double(D) str2double(D)];
