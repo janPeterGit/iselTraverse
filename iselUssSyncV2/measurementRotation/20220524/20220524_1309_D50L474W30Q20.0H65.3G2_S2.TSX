@@ -1,0 +1,26 @@
+CATMAN TEST FILE
+PATH=C:\Users\SHK\Desktop\MA_Ze\MATLAB\IselSyncUss\Orientation\20220524
+Version=catmanEasy Evaluierungsversion
+Jobname=Job1
+Messwertdatei mit Sicherungspfad=C:\Users\SHK\Desktop\MA_Ze\MATLAB\IselSyncUss\Orientation\20220524\20220524_1309_D50L474W30Q20.0H65.3G2_S2.txt
+Messwertdatei=20220524_1309_D50L474W30Q20.0H65.3G2_S2.txt
+Dateikommentar=
+Zeitzone=Mitteleuropäische Sommerzeit (UTC+2:00)
+Bearbeiter=
+Abteilung=
+Kommentar=
+Standardmessrate=50 Hz
+Langsame Messrate=10 Hz
+Schnelle Messrate=4800 Hz
+Anzahl Messwerte Standardmessrate=3000
+Anzahl Messwerte langsame Messrate=0
+Anzahl Messwerte schnelle Messrate=0
+Sicherungsmodus=PROMPT
+Master/Slave-Modus=Nein
+Startmodus=Manuell
+Startzeit=2022/05/24 13:08:04
+Stopmodus=Zeit
+Stopzeit=2022/05/24 13:09:04
+catmanEasy/AP version=5.5.2.10
+Firmware MX440B=4.40.8.0
+DATAFILE=C:\Users\SHK\Desktop\MA_Ze\MATLAB\IselSyncUss\Orientation\20220524\20220524_1309_D50L474W30Q20.0H65.3G2_S2.txt

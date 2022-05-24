@@ -31,6 +31,7 @@ B = 0.79;
 
 matlabDirectory = pwd;
 dataDirectory = 'OutputWSL';
+% dataDirectory = 'OutputWSLorientation';
 
 cd(dataDirectory)
 
@@ -279,10 +280,10 @@ dataTable.hDownAsterix = (dataTable.hDown) ./(dataTable.D + dataTable.hgr);
 hold on
 
 % DatumsIndex plotten
-for jj = 1:length(measurementDays)
-    dateText01 = text(dataTable.hDownAsterix(dataTable.measurementDay == measurementDays(jj))+0.005, ...
-        dataTable.hUpAsterix(dataTable.measurementDay == measurementDays(jj)),num2str(jj),'FontSize',fontSize/2);
-end
+% for jj = 1:length(measurementDays)
+%     dateText01 = text(dataTable.hDownAsterix(dataTable.measurementDay == measurementDays(jj))+0.005, ...
+%         dataTable.hUpAsterix(dataTable.measurementDay == measurementDays(jj)),num2str(jj),'FontSize',fontSize/2);
+% end
 
 for k = 1:length(caseNums)
     pltDepth = plot(dataTable.hDownAsterix(dataTable.caseNum == caseNums(k)),...
@@ -414,7 +415,7 @@ for kk = 1:length(uniqueLength)
 
 end
 
-sgtitle('$\Deltah/F_{measured}$', ...
+sgtitle('$\Delta h/F_{measured}$', ...
     'Interpreter','latex','FontSize',fontSize*1.2)
 
 
