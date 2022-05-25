@@ -135,9 +135,9 @@ hDownMinusG = dataTable.hDown - dataTable.G;
 % dataTable.Aref = sind(dataTable.gamma)*dataTable.L*dataTable.D + cosd(dataTable.gamma)*pi()/4*dataTable.D^2;
 % todo: hier muss nicht hUpMinusG genutzt werden sondern hUpMaxMinusG
 if hUpMinusG > dataTable.D
-    dataTable.Aref = dataTable.L * dataTable.D;
+    dataTable.Aref = sind(dataTable.gamma)*dataTable.L*dataTable.D + cosd(dataTable.gamma)*pi()/4*dataTable.D^2;
 elseif hUpMinusG <= dataTable.D
-    dataTable.Aref = dataTable.L * hUpMinusG;
+    dataTable.Aref = dataTable.L *sind(dataTable.gamma) * hUpMinusG; % todo: hier wird die Ellipse nicht bedacht
 end
 % dataTable.PipeRef = D_Pipe .* (dataTable.h - dataTable.D - dataTable.G);
 
@@ -190,7 +190,7 @@ if PositionCase(2) == '1'
     % todo: gilt nur für 90 Grad wegen D
     dataTable.caseNum = caseNum;
     dataTable.caseStr = caseStr;
-    dataTable.Fs = density * gravity * dataTable.L * (hUpMinusG.^2 - hDownMinusG.^2);
+    dataTable.Fs = density * gravity * dataTable.L * sind(dataTable.gamma) * (hUpMinusG.^2 - hDownMinusG.^2);
 
     % F_total = F_D + F_S
     dataTable.Ftotal = dataTable.FdBR + dataTable.Fs;
@@ -201,7 +201,7 @@ elseif PositionCase(2) == '2'
     % todo: gilt nur für 90 Grad wegen L und D
     dataTable.caseNum = caseNum;
     dataTable.caseStr = caseStr;
-    dataTable.Fs = density * gravity * dataTable.L * ...
+    dataTable.Fs = density * gravity * dataTable.L * sind(dataTable.gamma) * ...
         (dataTable.D .* (hUpMinusG - 0.5 * dataTable.D) -0.5 * hDownMinusG.^2);
 
     % F_total = F_D + F_S
@@ -232,7 +232,8 @@ else
 end
 
 % specific momentum Turcotte, 2016
-dataTable.FspecMom = density * gravity * dataTable.L /B *(((dataTable.Q/B)^2 / (gravity *dataTable.hUp) + (dataTable.hUp^2 /2)) ...
+dataTable.FspecMom = density * gravity * dataTable.L * sind(dataTable.gamma)...
+    /B *(((dataTable.Q/B)^2 / (gravity *dataTable.hUp) + (dataTable.hUp^2 /2)) ...
     - ((dataTable.Q/B)^2 /(gravity *dataTable.hDown) + (dataTable.hDown^2 /2)));
 
 

@@ -49,6 +49,8 @@ for i = 1:size(cases,1)
     dataTable(i,:) = dataTableImport;
 end
 
+dataTable = dataTable(dataTable.D == 0.05,:); % alle D=60mm Messungen aussortieren
+
 %%
 % plot data
 
