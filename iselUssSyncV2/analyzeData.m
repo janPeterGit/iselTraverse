@@ -20,7 +20,7 @@ matlabColor = {'#0072BD',...
     '#4DBEEE',...
     '#77AC30',...
     '#7E2F8E',...
-    '#EDB120'    
+    '#EDB120'
     };
 
 dateIndexPlot = 0;
@@ -31,6 +31,7 @@ B = 0.79;
 
 matlabDirectory = pwd;
 dataDirectory = 'OutputWSL';
+% dataDirectory = 'OutputWSLorientation';
 
 cd(dataDirectory)
 
@@ -47,6 +48,8 @@ for i = 1:size(cases,1)
     dataTableImport.measurementDay = str2double(filename(1:8));
     dataTable(i,:) = dataTableImport;
 end
+
+dataTable = dataTable(dataTable.D == 0.05,:); % alle D=60mm Messungen aussortieren
 
 %%
 % plot data
@@ -68,16 +71,8 @@ f.Units = 'centimeters';
 f.InnerPosition = [5 5 15 12];
 f.WindowState = 'maximize'; %fullscreen, minimize, normal, maximize
 
-hold on
-% plot regressionen 1:1 line
-pltRegression = plot(dataTable.FmeasuredUncor,dataTable.FmeasuredUncor);
-pltRegression.LineStyle = '-';
-pltRegression.Color = 'k';
-pltRegression.Marker = 'none';
-pltRegression.DisplayName = '1:1';
-
-
-
+maxLimit = max(max(dataTable.FmeasuredUncor,...
+    dataTable.Ftotal));
 % plot each Length
 uniqueLength = unique(dataTable.L);
 for kk = 1:length(uniqueLength)
@@ -85,65 +80,62 @@ for kk = 1:length(uniqueLength)
 
     caseNums = unique(dataTableLengthSelected.caseNum);
     caseStr = unique(dataTableLengthSelected.caseStr);
+    positions = unique(cell2mat(dataTableLengthSelected.Position));
     % plot calculated Force values
     % each case
-    for j = 1:length(caseNums)%-1
-        dataTableCaseSelected = dataTableLengthSelected(dataTableLengthSelected.caseNum == caseNums(j),:);
-        pltValues = plot(dataTableCaseSelected.FmeasuredUncor,...
-            dataTableCaseSelected.Ftotal);
+    subplot(1,2,kk); hold on
+    addOneToOneLine(dataTable.FmeasuredUncor)
+%     addTrendline(1,dataTableLengthSelected.FmeasuredUncor,...
+%         dataTableLengthSelected.Ftotal)
+    for ll = 1:length(positions)
+        
+        positionIndex = strcmp(dataTableLengthSelected.Position, positions(ll,:));
+        [idR,idC] = find(positionIndex == 1);
+        dataTablePositionSelected = dataTableLengthSelected(min(idR):max(idR),:);
+    
+        for j = 1:length(caseNums)%-1
 
-        pltValues.LineStyle = 'none';
-        pltValues.MarkerSize = 8;
-        pltValues.Marker = markerSet6(kk);
-        pltValues.MarkerEdgeColor = 'k';
-        pltValues.MarkerFaceColor = matlabColor{j};
-        pltValues.DisplayName = [num2str(size(dataTableCaseSelected,1)),...
-            'x case ',caseStr{j},', $L/B = ',num2str(uniqueLength(kk)/B),'$'];
+
+            dataTableCaseSelected = dataTablePositionSelected(dataTablePositionSelected.caseNum == caseNums(j),:);
+            if size(dataTableCaseSelected,1) > 0
+                pltValues = plot(dataTableCaseSelected.FmeasuredUncor,...
+                    dataTableCaseSelected.Ftotal);
+
+                pltValues.LineStyle = 'none';
+                pltValues.MarkerSize = 8;
+                pltValues.Marker = markerSet6(ll);
+                pltValues.MarkerEdgeColor = 'k';
+                pltValues.MarkerFaceColor = matlabColor{j};
+                pltValues.DisplayName = [num2str(size(dataTableCaseSelected,1)),...
+                    'x case ',caseStr{j},', ',positions(ll,:)];
+
+            end
+
+            lgd = legend('Interpreter','latex');
+            lgd.Location = 'northwest';
+
+            grid on
+
+            scaleFactor = 1;
+            daspect([1 1/scaleFactor 1])
+
+
+
+            xlim([0 maxLimit])
+            ylim([0 maxLimit])
+
+            xlabel('$F_{measured}$ [N]','Interpreter','latex')
+            ylabel('$F_{calculated}$ [N]','Interpreter','latex')
+
+            title(['$L/B = ',num2str(uniqueLength(kk)/B),'$'], ...
+                'Interpreter','latex')
+        end
     end
+
 end
 
-% case 4
-pltSpecificMomentum = plot(dataTable.FmeasuredUncor, dataTable.FspecMom);
-pltSpecificMomentum.LineStyle = 'none';
-pltSpecificMomentum.MarkerSize = 8;
-pltSpecificMomentum.Marker = 'x';%markerSet6(j+1);
-pltSpecificMomentum.MarkerEdgeColor = 'k';
-% pltSpecificMomentum.MarkerFaceColor = matlabColor{j+1};
-pltSpecificMomentum.DisplayName = ['Specific Momentum $\rho g B/L (M_{up} - M_{down})$'];
-
-addTrendline(1,dataTable.FmeasuredUncor,dataTable.FspecMom)
-
-measurementDays = unique(dataTable.measurementDay);
-if dateIndexPlot == 1
-    % DatumsIndex plotten
-    for jj = 1:length(measurementDays)
-        dateText01 = text(dataTable.FmeasuredUncor(dataTable.measurementDay == measurementDays(jj))+0.08, ...
-            dataTable.Ftotal(dataTable.measurementDay == measurementDays(jj)),num2str(jj),'FontSize',fontSize/2);
-        %     dateText02 = text(dataTable.FmeasuredUncor(dataTable.measurementDay == measurementDays(jj))+0.08, ...
-        %         dataTable.FspecMom(dataTable.measurementDay == measurementDays(jj)),num2str(jj),'FontSize',fontSize/2);
-    end
-end
-
-% xlim([-1000 1400])
-% ylim([0 150])
-lgd = legend('Interpreter','latex');
-lgd.Location = 'eastoutside';
-
-grid on
-
-scaleFactor = 1;
-daspect([1 1/scaleFactor 1])
-
-maxLimit = max(max(dataTableCaseSelected.FmeasuredUncor,...
-            dataTableCaseSelected.Ftotal));
-
-xlim([0 maxLimit])
-ylim([0 maxLimit])
-
-xlabel('$F_{measured}$ [N]','Interpreter','latex')
-ylabel('$F_{calculated}$ [N]','Interpreter','latex')
-
-title('$F_{total} = F_D + F_S$ (see Oertel, 2012)','Interpreter','latex')
+sgtitle('$F_{calculated}=F_{total}=F_D+F_S$', ...
+    'Interpreter','latex','FontSize',fontSize*1.2)
 
 %%
 % save dataTable and plot
@@ -172,15 +164,15 @@ f = figure('DefaultTextFontName', font, ...
     'DefaultAxesFontName', font,...
     'DefaultAxesFontSize',fontSize, ...
     'DefaultTextFontSize',fontSize);
-f.Name = 'Forces';
+f.Name = 'Forces Specific Momentum';
 f.Color = [1 1 1];
 f.Units = 'centimeters';
 f.InnerPosition = [5 5 15 12];
 f.WindowState = 'maximize'; %fullscreen, minimize, normal, maximize
 
 
-maxLimit = max(max(dataTableCaseSelected.FmeasuredUncor,...
-            dataTableCaseSelected.FspecMom));
+maxLimit = max(max(dataTable.FmeasuredUncor,...
+    dataTable.FspecMom));
 % plot each Length
 uniqueLength = unique(dataTable.L);
 for kk = 1:length(uniqueLength)
@@ -188,66 +180,59 @@ for kk = 1:length(uniqueLength)
 
     caseNums = unique(dataTableLengthSelected.caseNum);
     caseStr = unique(dataTableLengthSelected.caseStr);
+    positions = unique(cell2mat(dataTableLengthSelected.Position));
     % plot calculated Force values
     % each case
     subplot(1,2,kk); hold on
     addOneToOneLine(dataTable.FmeasuredUncor)
     addTrendline(1,dataTableLengthSelected.FmeasuredUncor,...
-            dataTableLengthSelected.FspecMom)
-    for j = 1:length(caseNums)%-1
+        dataTableLengthSelected.FspecMom)
+    for ll = 1:length(positions)
         
-        
-        dataTableCaseSelected = dataTableLengthSelected(dataTableLengthSelected.caseNum == caseNums(j),:);
-        pltValues = plot(dataTableCaseSelected.FmeasuredUncor,...
-            dataTableCaseSelected.FspecMom);
+        positionIndex = strcmp(dataTableLengthSelected.Position, positions(ll,:));
+        [idR,idC] = find(positionIndex == 1);
+        dataTablePositionSelected = dataTableLengthSelected(min(idR):max(idR),:);
+    
+        for j = 1:length(caseNums)%-1
 
-        pltValues.LineStyle = 'none';
-        pltValues.MarkerSize = 8;
-        pltValues.Marker = markerSet6(kk);
-        pltValues.MarkerEdgeColor = 'k';
-        pltValues.MarkerFaceColor = matlabColor{j};
-        pltValues.DisplayName = [num2str(size(dataTableCaseSelected,1)),...
-            'x case ',caseStr{j}];
 
-        
-        
-        lgd = legend('Interpreter','latex');
-        lgd.Location = 'northwest';
+            dataTableCaseSelected = dataTablePositionSelected(dataTablePositionSelected.caseNum == caseNums(j),:);
+            if size(dataTableCaseSelected,1) > 0
+                pltValues = plot(dataTableCaseSelected.FmeasuredUncor,...
+                    dataTableCaseSelected.FspecMom);
 
-        grid on
+                pltValues.LineStyle = 'none';
+                pltValues.MarkerSize = 8;
+                pltValues.Marker = markerSet6(ll);
+                pltValues.MarkerEdgeColor = 'k';
+                pltValues.MarkerFaceColor = matlabColor{j};
+                pltValues.DisplayName = [num2str(size(dataTableCaseSelected,1)),...
+                    'x case ',caseStr{j},', ',positions(ll,:)];
 
-        scaleFactor = 1;
-        daspect([1 1/scaleFactor 1])
+            end
 
-        
+            lgd = legend('Interpreter','latex');
+            lgd.Location = 'northwest';
 
-        xlim([0 maxLimit])
-        ylim([0 maxLimit])
+            grid on
 
-        xlabel('$F_{measured}$ [N]','Interpreter','latex')
-        ylabel('$F_{calculated}$ [N]','Interpreter','latex')
+            scaleFactor = 1;
+            daspect([1 1/scaleFactor 1])
 
-        title(['$L/B = ',num2str(uniqueLength(kk)/B),'$'], ...
-            'Interpreter','latex')
+
+
+            xlim([0 maxLimit])
+            ylim([0 maxLimit])
+
+            xlabel('$F_{measured}$ [N]','Interpreter','latex')
+            ylabel('$F_{calculated}$ [N]','Interpreter','latex')
+
+            title(['$L/B = ',num2str(uniqueLength(kk)/B),'$'], ...
+                'Interpreter','latex')
+        end
     end
+
 end
-
-
-
-measurementDays = unique(dataTable.measurementDay);
-if dateIndexPlot == 1
-    % DatumsIndex plotten
-    for jj = 1:length(measurementDays)
-        dateText01 = text(dataTable.FmeasuredUncor(dataTable.measurementDay == measurementDays(jj))+0.08, ...
-            dataTable.Ftotal(dataTable.measurementDay == measurementDays(jj)),num2str(jj),'FontSize',fontSize/2);
-        %     dateText02 = text(dataTable.FmeasuredUncor(dataTable.measurementDay == measurementDays(jj))+0.08, ...
-        %         dataTable.FspecMom(dataTable.measurementDay == measurementDays(jj)),num2str(jj),'FontSize',fontSize/2);
-    end
-end
-
-% xlim([-1000 1400])
-% ylim([0 150])
-
 
 sgtitle('Specific Momentum Eq. (see Turcotte, 2016)', ...
     'Interpreter','latex','FontSize',fontSize*1.2)
@@ -297,10 +282,10 @@ dataTable.hDownAsterix = (dataTable.hDown) ./(dataTable.D + dataTable.hgr);
 hold on
 
 % DatumsIndex plotten
-for jj = 1:length(measurementDays)
-    dateText01 = text(dataTable.hDownAsterix(dataTable.measurementDay == measurementDays(jj))+0.005, ...
-        dataTable.hUpAsterix(dataTable.measurementDay == measurementDays(jj)),num2str(jj),'FontSize',fontSize/2);
-end
+% for jj = 1:length(measurementDays)
+%     dateText01 = text(dataTable.hDownAsterix(dataTable.measurementDay == measurementDays(jj))+0.005, ...
+%         dataTable.hUpAsterix(dataTable.measurementDay == measurementDays(jj)),num2str(jj),'FontSize',fontSize/2);
+% end
 
 for k = 1:length(caseNums)
     pltDepth = plot(dataTable.hDownAsterix(dataTable.caseNum == caseNums(k)),...
@@ -369,41 +354,72 @@ f.WindowState = 'maximize'; %fullscreen, minimize, normal, maximize
 hold on
 
 % calculate Delta H
-deltaH = (dataTable.hUp - dataTable.hDown) * 1000; % m -> mm
+dataTable.deltaH = (dataTable.hUp - dataTable.hDown) * 1000; % m -> mm
 
-% trendline??? todo
+% plot each Length
+uniqueLength = unique(dataTable.L);
+for kk = 1:length(uniqueLength)
+    dataTableLengthSelected = dataTable(dataTable.L == uniqueLength(kk),:);
 
-for k = 1:length(caseNums)
-    pltDepth = plot(deltaH(dataTable.caseNum == caseNums(k)),...
-        dataTable.FmeasuredUncor(dataTable.caseNum == caseNums(k)));
-    pltDepth.LineStyle = 'none';
-    pltDepth.MarkerSize = 8;
-    pltDepth.Marker = markerSet6(k);
-    pltDepth.MarkerEdgeColor = 'k';
-    pltDepth.MarkerFaceColor = matlabColor{k};
-    pltDepth.DisplayName = ['case ',caseStr{k}];
+    caseNums = unique(dataTableLengthSelected.caseNum);
+    caseStr = unique(dataTableLengthSelected.caseStr);
+    positions = unique(cell2mat(dataTableLengthSelected.Position));
+    % plot calculated Force values
+    % each case
+    subplot(1,2,kk); hold on
+%     addOneToOneLine(dataTable.FmeasuredUncor)
+%     addTrendline(1,dataTableLengthSelected.FmeasuredUncor,...
+%         dataTableLengthSelected.Ftotal)
+    for ll = 1:length(positions)
+        
+        positionIndex = strcmp(dataTableLengthSelected.Position, positions(ll,:));
+        [idR,idC] = find(positionIndex == 1);
+        dataTablePositionSelected = dataTableLengthSelected(min(idR):max(idR),:);
+    
+        for j = 1:length(caseNums)%-1
+
+
+            dataTableCaseSelected = dataTablePositionSelected(dataTablePositionSelected.caseNum == caseNums(j),:);
+            if size(dataTableCaseSelected,1) > 0
+                pltValues = plot(dataTableCaseSelected.deltaH,...
+                    dataTableCaseSelected.FmeasuredUncor);
+
+                pltValues.LineStyle = 'none';
+                pltValues.MarkerSize = 8;
+                pltValues.Marker = markerSet6(ll);
+                pltValues.MarkerEdgeColor = 'k';
+                pltValues.MarkerFaceColor = matlabColor{j};
+                pltValues.DisplayName = [num2str(size(dataTableCaseSelected,1)),...
+                    'x case ',caseStr{j},', ',positions(ll,:)];
+
+            end
+
+            lgd = legend('Interpreter','latex');
+            lgd.Location = 'northwest';
+
+            grid on
+
+            scaleFactor = 1;
+%             daspect([1 1/scaleFactor 1])
+
+
+
+            xlim([0 max(dataTable.deltaH)])
+            ylim([0 max(dataTable.FmeasuredUncor)])
+
+            xlabel('$\Delta h$ [mm]','Interpreter','latex')
+            ylabel('$F_{measured}$ [N]','Interpreter','latex')
+
+            title(['$L/B = ',num2str(uniqueLength(kk)/B),'$'], ...
+                'Interpreter','latex')
+        end
+    end
+
 end
 
-for jj = 1:length(measurementDays)
-    dateText01 = text(deltaH(dataTable.measurementDay == measurementDays(jj))+0.25, ...
-        dataTable.FmeasuredUncor(dataTable.measurementDay == measurementDays(jj)),num2str(jj),'FontSize',fontSize/2);
-end
+sgtitle('$\Delta h/F_{measured}$', ...
+    'Interpreter','latex','FontSize',fontSize*1.2)
 
-grid on
-
-% scaleFactor = 1;
-% daspect([1 1/scaleFactor 1])
-
-% maxLimit = max(max(xlim,ylim));
-
-xlim([0 max(xlim)])
-ylim([0 max(ylim)+2])
-
-lgd = legend('Interpreter','latex');
-lgd.Location = 'northwest';
-
-xlabel('$\Delta h$ [mm]','Interpreter','latex')
-ylabel('$F_{measured}$ [N]','Interpreter','latex')
 
 %%
 figureName = [outputDirectory,'/deltaH-F.png'];

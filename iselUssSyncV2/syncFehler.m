@@ -7,7 +7,7 @@ folder = 'wrongTimestamp\';
 filename = '20220506_1610_L474W90Q12.5H67G2_C.csv';
 ussTable = readtable([path,folder,filename]);
 
-% plot(ussTable.Var1,ussTable.Var2,'.')
+plot(ussTable.Var1,ussTable.Var2,'.')
 
 % daspect([1 1 1])
 
