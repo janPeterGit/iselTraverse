@@ -13,8 +13,11 @@ matlabFolder = pwd;
 % dname = uigetdir('../../measurements/2022 Voruntersuchungen nonUniform');
 % Gehe zum Verzeichnis mit den Messdaten
 % cd(dname)
-dname = 'LogISEL_LogUSS_WSLgrid\L474W90Q60';
 % dname = 'LogISEL_LogUSS_WSLgrid\leereRinne';
+% dname = 'LogISEL_LogUSS_WSLgrid\L316W45Q60';
+dname = 'LogISEL_LogUSS_WSLgrid\L316W60Q60';
+% dname = 'LogISEL_LogUSS_WSLgrid\L474W45Q60';
+% dname = 'LogISEL_LogUSS_WSLgrid\L474W90Q60';
 cd(dname)
 
 % cd(dname)
@@ -24,8 +27,8 @@ measurements = ls('*.xlsx');
 filenameISEL = measurements;
 filenameUSS = [filenameISEL(1:end-5),'.csv'];
 
-lCyl = str2double(extractBetween(filenameUSS,'L','W'));
-dCyl = 50;
+lCyl = str2double(extractBetween(filenameUSS,'L','W'))/1000;
+dCyl = 50/1000;
 gammaCyl = str2double(extractBetween(filenameUSS,'W','Q'));
 Q = str2double(extractBetween(filenameUSS,'Q','H'));
 
@@ -77,9 +80,12 @@ y = dataMatrix(:,2)-395;
 meanValue = dataMatrix(:,3);
 stdValue = dataMatrix(:,4);
 
+meanValue(stdValue > 10) = NaN;
+
 %%
 % leere Rinne
-dataTableRinne = readtable('C:\Users\JB\Documents\GitHub\iselTraverse\iselUssSyncV2\LogISEL_LogUSS_WSLgrid\leereRinne\leereRinne.xlsx');
+cd(matlabFolder)
+dataTableRinne = readtable('LogISEL_LogUSS_WSLgrid\leereRinne\leereRinne.xlsx');
 dataRinne = table2array(dataTableRinne);
 meanValueRinne = dataRinne(:,3);
 
@@ -93,14 +99,21 @@ yVek = min(y):deltaXY:max(y);
 % [X,Y] = meshgrid(unique(x),unique(y));
 [X,Y] = meshgrid(xVek,yVek);
 MEANvALUE = griddata(x,y,meanValue,X,Y);
+STdVALUE = griddata(x,y,stdValue,X,Y);
 
 MEANvALUE(MEANvALUE > 140) = NaN;
 [xRow,xCol] = find(X > -60 & X < 240);
 MEANvALUE(:,unique(xCol)) = NaN;
 
+% mm in m
+X = X/1000;
+Y = Y/1000;
+MEANvALUE = MEANvALUE/1000;
+
 
 %%
 close all
+cd(matlabFolder)
 
 font = 'Arial';
 fontSize = 16;
@@ -115,49 +128,50 @@ f.InnerPosition = [5 5 18 30];
 f.WindowState = 'normal'; %fullscreen, minimize, normal, maximize
 % hold on
 
-tlayout = tiledlayout(3,1);
+subplot(3,1,1)
 
-nexttile(1)
-plotWSL = surf(X,Y,MEANvALUE); hold on
+plotWSL = surf(X,Y,MEANvALUE);
 plotWSL.FaceAlpha = 0.75;
 % plotWSL.EdgeColor = 'none';
 
-cb = colorbar;
-cb.Layout.Tile = 'north';
-cb.Label.String = '$h$ [mm]';
-cb.TickLabelInterpreter = 'latex';
-cb.Label.Interpreter = 'latex';
-colormap(turbo(20))
+
 % caxis([min(min(MEANvALUE)),max(max(MEANvALUE))])
-caxis([40 140])
-% caxis([-1 1.5])
+caxis([0.040 0.140])
 
-% rCyl = 25;
-% [Xcyl,Zcyl,Ycyl] = cylinder(rCyl);
-% plotCylinder = surf(Xcyl,(Ycyl*Lcyl)-Lcyl/2,Zcyl+Dcyl/2);
-% plotCylinder.FaceColor = [0.7 0.7 0.7];
-% plotCylinder.EdgeColor = 'none';
 
-drawCylinder(dCyl/2,lCyl,64);
+drawCylinder(dCyl,lCyl,64,gammaCyl);
 
 zFaktor = 3;
 daspect([1 1 1/zFaktor])
 view([20,20])
-
+zlim([0 0.15])
+grid on
 xlabel('$x$ [mm]',Interpreter='latex')
 % ylabel('$y$ [mm]',Interpreter='latex')
 zlabel('$z$ [mm]',Interpreter='latex')
 set(gca,'TickLabelInterpreter','latex')
 
-nexttile
-plotWSL = surf(X,Y,MEANvALUE); hold on
+subplot(3,1,2)
+
+
+
+% pdegplot(model,FaceAlpha=0.7); hold on
+% delete(findobj(gca,'type','Quiver'))
+
+plotWSL = surf(X,Y,MEANvALUE); 
 plotWSL.FaceAlpha = 0.75;
 % plotWSL.EdgeColor = 'none';
-
+cb = colorbar;
+% cb.Layout.Tile = 'north';
+cb.Label.String = '$h$ [m]';
+cb.TickLabelInterpreter = 'latex';
+cb.Label.Interpreter = 'latex';
+cb.Location = "northoutside";
+colormap(turbo(20))
 % caxis([min(min(MEANvALUE)),max(max(MEANvALUE))])
-caxis([40 140])
+caxis([0.040 0.140])
 
-drawCylinder(dCyl/2,lCyl,64);
+drawCylinder(dCyl,lCyl,64,gammaCyl);
 
 zFaktor = 3;
 daspect([1 1 1/zFaktor])
@@ -168,15 +182,22 @@ ylabel('$y$ [mm]',Interpreter='latex')
 zlabel('$z$ [mm]',Interpreter='latex')
 set(gca,'TickLabelInterpreter','latex')
 
-nexttile
-plotWSL = surf(X,Y,MEANvALUE); hold on
+
+
+
+subplot(3,1,3)
+
+% pdegplot(model,FaceAlpha=0.7); hold on
+% delete(findobj(gca,'type','Quiver'))
+
+plotWSL = surf(X,Y,MEANvALUE); 
 plotWSL.FaceAlpha = 0.75;
 % plotWSL.EdgeColor = 'none';
 
 % caxis([min(min(MEANvALUE)),max(max(MEANvALUE))])
-caxis([40 140])
+caxis([0.040 0.140])
 
-[vertices,sideFaces,bottomFaces] = drawCylinder(dCyl/2,lCyl,64);
+[vertices,sideFaces,bottomFaces] = drawCylinder(dCyl,lCyl,64,gammaCyl);
 
 zFaktor = 3;
 daspect([1 1 1/zFaktor])
@@ -197,6 +218,10 @@ set(gca,'TickLabelInterpreter','latex')
 %     Interpreter='latex')
 % title(tlayout,'test')
 
+caseName = extractAfter(dname,'\');
+png_name = ['LogISEL_LogUSS_WSLgrid\',caseName,'.png'];
+saveas(gcf,png_name)
+
 cd(matlabFolder)
 disp('All done')
 
@@ -204,14 +229,14 @@ disp('All done')
 
 
 %%
-function [vertices,sideFaces,bottomFaces] = drawCylinder(rCyl,lCyl,sideCount)
+function [vertices,sideFaces,bottomFaces] = drawCylinder(dCyl,lCyl,sideCount,gamma)
 
 % Vertices
 vertices = zeros(2*sideCount, 3);
 for i = 1:sideCount
     theta = 2*pi/sideCount*(i-1);
-    vertices(i,:) = [rCyl*cos(theta),0-lCyl/2,rCyl*sin(theta)+rCyl];
-    vertices(sideCount+i,:) = [rCyl*cos(theta),lCyl/2, rCyl*sin(theta)+rCyl];
+    vertices(i,:) = [dCyl/2*cos(theta),0-lCyl/2,dCyl/2*sin(theta)+dCyl/2];
+    vertices(sideCount+i,:) = [dCyl/2*cos(theta),lCyl/2, dCyl/2*sin(theta)+dCyl/2];
 end
 
 % Side faces
@@ -227,8 +252,11 @@ bottomFaces = [
     (sideCount+1):2*sideCount];
 
 % Draw patches
-patch('Faces', sideFaces, 'Vertices', vertices,...
+sidePatches = patch('Faces', sideFaces, 'Vertices', vertices,...
     'EdgeColor','none','FaceColor', [.4 .4 .4]);
-patch('Faces', bottomFaces, 'Vertices', vertices,...
+bottomPatches = patch('Faces', bottomFaces, 'Vertices', vertices,...
     'EdgeColor','none','FaceColor', [.6 .6 .6]);
+% 
+rotate(sidePatches, [0 0 1], gamma-90,[0 0 0])
+rotate(bottomPatches, [0 0 1], gamma-90,[0 0 0])
 end
