@@ -9,15 +9,18 @@ close all
 % read ISEL log Datei
 matlabFolder = pwd;
 
+leereRinneAuswertung = 1;
+
 % Wähle den Ordner mit den Messdaten %%%%%% STARTVERZEICHNIS ANPASSEN %%%%%
 % dname = uigetdir('../../measurements/2022 Voruntersuchungen nonUniform');
 % Gehe zum Verzeichnis mit den Messdaten
 % cd(dname)
 % dname = 'LogISEL_LogUSS_WSLgrid\leereRinne';
+% dname = 'LogISEL_LogUSS_WSLgrid\leereRinnePlus';
 % dname = 'LogISEL_LogUSS_WSLgrid\L316W45Q60';
-dname = 'LogISEL_LogUSS_WSLgrid\L316W60Q60';
+% dname = 'LogISEL_LogUSS_WSLgrid\L316W60Q60';
 % dname = 'LogISEL_LogUSS_WSLgrid\L474W45Q60';
-% dname = 'LogISEL_LogUSS_WSLgrid\L474W90Q60';
+dname = 'LogISEL_LogUSS_WSLgrid\L474W90Q60kombi';
 cd(dname)
 
 % cd(dname)
@@ -72,9 +75,10 @@ dataTable03 = iselTable(:,{'positionX','positionY3','meanValueSensor03','stdValu
 dataMatrix = table2array(dataTable01);
 dataMatrix = [dataMatrix;table2array(dataTable02)];
 dataMatrix = [dataMatrix;table2array(dataTable03)];
-% dataTableRinne = array2table(dataMatrix);
-% writetable(dataTableRinne,'leereRinne.xlsx','Sheet','MyNewSheet','WriteVariableNames',true);
-
+if leereRinneAuswertung == 1
+dataTableRinne = array2table(dataMatrix);
+writetable(dataTableRinne,'leereRinnePlus.xlsx','Sheet','MyNewSheet','WriteVariableNames',true);
+end 
 x = dataMatrix(:,1);
 y = dataMatrix(:,2)-395;
 meanValue = dataMatrix(:,3);
@@ -84,12 +88,14 @@ meanValue(stdValue > 10) = NaN;
 
 %%
 % leere Rinne
-cd(matlabFolder)
-dataTableRinne = readtable('LogISEL_LogUSS_WSLgrid\leereRinne\leereRinne.xlsx');
-dataRinne = table2array(dataTableRinne);
-meanValueRinne = dataRinne(:,3);
+if leereRinneAuswertung == 0
+    cd(matlabFolder)
+    dataTableRinne = readtable('LogISEL_LogUSS_WSLgrid\leereRinneKombi\leereRinne.xlsx');
+    dataRinne = table2array(dataTableRinne);
+    meanValueRinne = dataRinne(:,3);
 
-meanValue = meanValue - meanValueRinne;
+    meanValue = meanValue - meanValueRinne;
+end
 
 %%
 deltaXY = 30;
@@ -124,20 +130,26 @@ f = figure('DefaultTextFontName', font, ...
 f.Name = 'wsl 3d';
 f.Color = [1 1 1];
 f.Units = 'centimeters';
-f.InnerPosition = [5 5 18 30];
+f.InnerPosition = [5 5 40 26];
 f.WindowState = 'normal'; %fullscreen, minimize, normal, maximize
 % hold on
 
-subplot(3,1,1)
+subplot(2,2,1:2)
 
 plotWSL = surf(X,Y,MEANvALUE);
 plotWSL.FaceAlpha = 0.75;
 % plotWSL.EdgeColor = 'none';
 
 
-% caxis([min(min(MEANvALUE)),max(max(MEANvALUE))])
-caxis([0.040 0.140])
-
+caxis([min(min(MEANvALUE)),max(max(MEANvALUE))])
+% caxis([0.040 0.140])
+cb = colorbar;
+% cb.Layout.Tile = 'north';
+cb.Label.String = '$h$ [m]';
+cb.TickLabelInterpreter = 'latex';
+cb.Label.Interpreter = 'latex';
+cb.Location = "eastoutside";
+colormap(turbo(20))
 
 drawCylinder(dCyl,lCyl,64,gammaCyl);
 
@@ -151,7 +163,7 @@ xlabel('$x$ [mm]',Interpreter='latex')
 zlabel('$z$ [mm]',Interpreter='latex')
 set(gca,'TickLabelInterpreter','latex')
 
-subplot(3,1,2)
+subplot(2,2,3)
 
 
 
@@ -161,15 +173,9 @@ subplot(3,1,2)
 plotWSL = surf(X,Y,MEANvALUE); 
 plotWSL.FaceAlpha = 0.75;
 % plotWSL.EdgeColor = 'none';
-cb = colorbar;
-% cb.Layout.Tile = 'north';
-cb.Label.String = '$h$ [m]';
-cb.TickLabelInterpreter = 'latex';
-cb.Label.Interpreter = 'latex';
-cb.Location = "northoutside";
-colormap(turbo(20))
+
 % caxis([min(min(MEANvALUE)),max(max(MEANvALUE))])
-caxis([0.040 0.140])
+% caxis([0.040 0.140])
 
 drawCylinder(dCyl,lCyl,64,gammaCyl);
 
@@ -185,7 +191,7 @@ set(gca,'TickLabelInterpreter','latex')
 
 
 
-subplot(3,1,3)
+subplot(2,2,4)
 
 % pdegplot(model,FaceAlpha=0.7); hold on
 % delete(findobj(gca,'type','Quiver'))
@@ -195,7 +201,7 @@ plotWSL.FaceAlpha = 0.75;
 % plotWSL.EdgeColor = 'none';
 
 % caxis([min(min(MEANvALUE)),max(max(MEANvALUE))])
-caxis([0.040 0.140])
+% caxis([0.040 0.140])
 
 [vertices,sideFaces,bottomFaces] = drawCylinder(dCyl,lCyl,64,gammaCyl);
 
