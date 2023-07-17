@@ -13,7 +13,7 @@ dnames = ['LogISEL_LogUSS_WSLgrid\L316W45Q60'
 matlabFolder = pwd;
 
 leereRinneAuswertung = 0;
-analyzeData = 0; % interpDaten werden bei 0 abgerufen. 
+analyzeData = 1; % interpDaten werden bei 0 abgerufen. 
 % bei 1 werden die Rohdaten eingeladen und verarbeitet
 
 % Wähle den Ordner mit den Messdaten %%%%%% STARTVERZEICHNIS ANPASSEN %%%%%
@@ -26,7 +26,7 @@ analyzeData = 0; % interpDaten werden bei 0 abgerufen.
 
 for dirs = 1:size(dnames,1)
     dname = dnames(dirs,:);
-    caseName = extractAfter(dname,'\')
+    caseName = extractAfter(dname,'\');
     cd(dname)
 
     % cd(dname)
@@ -124,9 +124,9 @@ for dirs = 1:size(dnames,1)
         MEANvALUE = griddata(x,y,meanValue,X,Y);
         STdVALUE = griddata(x,y,stdValue,X,Y);
 
-        MEANvALUE(MEANvALUE > 140) = NaN;
-        [xRow,xCol] = find(X > -60 & X < 240);
-        MEANvALUE(:,unique(xCol)) = NaN;
+%         MEANvALUE(MEANvALUE > 140) = NaN;
+%         [xRow,xCol] = find(X > -60 & X < 240);
+%         MEANvALUE(:,unique(xCol)) = NaN;
 
         % mm in m
         X = X/1000;
@@ -134,7 +134,7 @@ for dirs = 1:size(dnames,1)
         MEANvALUE = MEANvALUE/1000;
 
         filenameInterpData = [dname,'\',caseName,'_interpData.mat'];
-        save(filenameInterpData,'X','Y','MEANvALUE')
+        save(filenameInterpData,'X','Y','MEANvALUE','STdVALUE')
     end
     %%
     close all
